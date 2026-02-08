@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { ScheduleItem, Message, ScheduleItemStatus } from '@/types/models'
 import {
@@ -10,6 +10,8 @@ import {
   updateScheduleItem,
   deleteScheduleItem,
 } from '@/lib/store'
+import { detectTags, DetectedTag } from '@/lib/detectTags'
+import { formatTimestamp } from '@/lib/formatTimestamp'
 
 interface ThreadViewProps {
   projectId: string
@@ -21,19 +23,19 @@ interface ThreadViewProps {
 }
 
 const statusStyles: Record<string, string> = {
-  not_started: 'bg-slate-100 text-slate-700 border-slate-300',
-  in_progress: 'bg-blue-100 text-blue-700 border-blue-300',
-  completed: 'bg-green-100 text-green-700 border-green-300',
-  at_risk: 'bg-orange-100 text-orange-700 border-orange-300',
-  blocked: 'bg-red-100 text-red-700 border-red-300',
+  not_started: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  in_progress: 'bg-blue-500/20 text-cg-blue border-blue-500/30',
+  completed: 'bg-green-500/20 text-cg-green border-green-500/30',
+  at_risk: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  blocked: 'bg-red-500/20 text-cg-red border-red-500/30',
 }
 
 const statusButtonStyles: Record<string, { base: string; active: string }> = {
-  not_started: { base: 'border-slate-300 text-slate-600 hover:bg-slate-50', active: 'border-slate-500 bg-slate-100 text-slate-800' },
-  in_progress: { base: 'border-blue-300 text-blue-600 hover:bg-blue-50', active: 'border-blue-500 bg-blue-100 text-blue-800' },
-  completed: { base: 'border-green-300 text-green-600 hover:bg-green-50', active: 'border-green-500 bg-green-100 text-green-800' },
-  at_risk: { base: 'border-orange-300 text-orange-600 hover:bg-orange-50', active: 'border-orange-500 bg-orange-100 text-orange-800' },
-  blocked: { base: 'border-red-300 text-red-600 hover:bg-red-50', active: 'border-red-500 bg-red-100 text-red-800' },
+  not_started: { base: 'border-border text-text-muted hover:bg-card', active: 'border-slate-500/30 bg-slate-500/20 text-slate-400' },
+  in_progress: { base: 'border-border text-text-muted hover:bg-card', active: 'border-blue-500/30 bg-blue-500/20 text-cg-blue' },
+  completed: { base: 'border-border text-text-muted hover:bg-card', active: 'border-green-500/30 bg-green-500/20 text-cg-green' },
+  at_risk: { base: 'border-border text-text-muted hover:bg-card', active: 'border-orange-500/30 bg-orange-500/20 text-orange-400' },
+  blocked: { base: 'border-border text-text-muted hover:bg-card', active: 'border-red-500/30 bg-red-500/20 text-cg-red' },
 }
 
 const statusLabels: Record<string, string> = {
@@ -53,10 +55,17 @@ const statusIcons: Record<string, string> = {
 }
 
 const roleBadgeStyles: Record<string, string> = {
-  superintendent: 'bg-orange-100 text-orange-800',
-  project_manager: 'bg-purple-100 text-purple-800',
-  foreman: 'bg-blue-100 text-blue-800',
-  subcontractor: 'bg-slate-100 text-slate-800',
+  superintendent: 'bg-orange-500/15 text-orange-400',
+  project_manager: 'bg-purple-500/15 text-cg-purple',
+  foreman: 'bg-blue-500/15 text-cg-blue',
+  subcontractor: 'bg-slate-500/15 text-slate-400',
+}
+
+const roleAvatarStyles: Record<string, string> = {
+  superintendent: 'bg-orange-500/20 text-orange-400',
+  project_manager: 'bg-purple-500/20 text-cg-purple',
+  foreman: 'bg-blue-500/20 text-cg-blue',
+  subcontractor: 'bg-slate-500/20 text-slate-400',
 }
 
 const roleLabels: Record<string, string> = {
@@ -69,9 +78,27 @@ const roleLabels: Record<string, string> = {
 const userNames: Record<string, string> = {
   'user_super': 'Mike Sullivan',
   'user_pm': 'Sarah Chen',
+  'user_foreman': 'Carlos Martinez',
+  'user_sub': 'Alex Kim',
 }
 
 const allStatuses: ScheduleItemStatus[] = ['not_started', 'in_progress', 'completed', 'at_risk', 'blocked']
+
+function TagPills({ tags }: { tags: DetectedTag[] }) {
+  if (tags.length === 0) return null
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {tags.map((tag) => (
+        <span
+          key={tag.id}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}
+        >
+          {tag.icon} {tag.label}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export default function ThreadView({
   projectId,
@@ -101,6 +128,9 @@ export default function ThreadView({
 
   const today = new Date().toISOString().split('T')[0]
   const isPastDue = item.status !== 'completed' && item.dueDate < today
+
+  // Smart compose tag detection
+  const composeTags = useMemo(() => detectTags(newMessage), [newMessage])
 
   const scrollToBottom = useCallback((instant = false) => {
     const el = scrollContainerRef.current
@@ -206,28 +236,6 @@ export default function ThreadView({
     onDelete()
   }
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-
-    const isToday = date.toDateString() === now.toDateString()
-    if (isToday) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-
-    if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
@@ -240,10 +248,10 @@ export default function ThreadView({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4">
+      <div className="border-b border-border bg-main px-6 py-4">
         <button
           onClick={onBack}
-          className="mb-3 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+          className="mb-3 inline-flex items-center gap-1 text-sm text-cg-blue hover:text-blue-300"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -254,36 +262,36 @@ export default function ThreadView({
         {!isEditing ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-slate-900">{item.title}</h1>
+              <h1 className="text-xl font-semibold text-text-primary">{item.title}</h1>
               <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyles[item.status]}`}>
                 {statusLabels[item.status]}
               </span>
               {isPastDue && (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-cg-red">
                   Past Due
                 </span>
               )}
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-text-muted">
               <span>Due: {formatDate(item.dueDate)}</span>
               {item.assignedTo && (
                 <>
-                  <span>•</span>
+                  <span>{'\u00B7'}</span>
                   <span>{userNames[item.assignedTo] || 'Unknown'}</span>
                 </>
               )}
             </div>
 
             {item.description && (
-              <p className="mt-2 text-sm text-slate-600">{item.description}</p>
+              <p className="mt-2 text-sm text-text-secondary">{item.description}</p>
             )}
 
             {/* Actions */}
             <div className="mt-3 flex items-center gap-2">
               <button
                 onClick={handleStartEdit}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-card"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -294,7 +302,7 @@ export default function ThreadView({
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="inline-flex items-center gap-1 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-card"
                 >
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -303,16 +311,16 @@ export default function ThreadView({
                 </button>
               ) : (
                 <span className="inline-flex items-center gap-2 text-xs">
-                  <span className="font-medium text-red-600">Delete this item?</span>
+                  <span className="font-medium text-cg-red">Delete this item?</span>
                   <button
                     onClick={handleDelete}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                    className="rounded-md bg-cg-red px-3 py-1.5 text-xs font-medium text-white hover:bg-red-400"
                   >
                     Yes
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-card"
                   >
                     No
                   </button>
@@ -322,7 +330,7 @@ export default function ThreadView({
 
             {/* Status Toggle */}
             <div className="mt-4">
-              <p className="mb-2 text-xs font-medium uppercase text-slate-500">Update Status</p>
+              <p className="mb-2 text-xs font-medium uppercase text-text-muted">Update Status</p>
               <div className="flex flex-wrap gap-2">
                 {allStatuses.map((status) => (
                   <button
@@ -340,7 +348,7 @@ export default function ThreadView({
                 ))}
               </div>
               {statusToast && (
-                <p className="mt-2 text-xs font-medium text-green-600">{statusToast}</p>
+                <p className="mt-2 text-xs font-medium text-cg-green">{statusToast}</p>
               )}
             </div>
           </>
@@ -351,42 +359,44 @@ export default function ThreadView({
               placeholder="Title *"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
             <input
               type="text"
               placeholder="Description"
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
             <div className="grid gap-3 sm:grid-cols-2">
               <input
                 type="date"
                 value={editDueDate}
                 onChange={(e) => setEditDueDate(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <select
                 value={editAssignedTo}
                 onChange={(e) => setEditAssignedTo(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               >
                 <option value="">Unassigned</option>
                 <option value="user_super">Mike Sullivan</option>
                 <option value="user_pm">Sarah Chen</option>
+                <option value="user_foreman">Carlos Martinez</option>
+                <option value="user_sub">Alex Kim</option>
               </select>
             </div>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsEditing(false)}
-                className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                className="rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-card"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-dark hover:bg-amber-500"
               >
                 Save
               </button>
@@ -398,44 +408,47 @@ export default function ThreadView({
       {/* Messages */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-6"
+        className="flex-1 overflow-y-auto bg-main p-6"
         onScroll={() => { shouldAutoScrollRef.current = isNearBottom() }}
       >
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-500">No comments yet. Add the first comment!</p>
+          <p className="py-8 text-center text-sm text-text-muted">No comments yet. Add the first comment!</p>
         ) : (
           <div className="space-y-1">
             {messages.map((msg, index) => {
               const prevMsg = index > 0 ? messages[index - 1] : null
               const isGrouped = prevMsg?.authorId === msg.authorId
+              const msgTags = detectTags(msg.content)
 
               if (isGrouped) {
                 return (
-                  <div key={msg.id} className="flex gap-3 pl-11">
+                  <div key={msg.id} className="animate-fadeIn flex gap-3 pl-11">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-slate-700">{msg.content}</p>
-                        <span className="shrink-0 text-xs text-slate-400">{formatTimestamp(msg.createdAt)}</span>
+                        <p className="text-sm text-text-secondary">{msg.content}</p>
+                        <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                       </div>
+                      <TagPills tags={msgTags} />
                     </div>
                   </div>
                 )
               }
 
               return (
-                <div key={msg.id} className={`flex gap-3 ${index > 0 ? 'mt-4' : ''}`}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
+                <div key={msg.id} className={`animate-fadeIn flex gap-3 ${index > 0 ? 'mt-4' : ''}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${roleAvatarStyles[msg.authorRole] || 'bg-slate-500/20 text-slate-400'}`}>
                     {msg.authorName.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-slate-900">{msg.authorName}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[msg.authorRole] || 'bg-slate-100 text-slate-800'}`}>
+                      <span className="font-medium text-text-primary">{msg.authorName}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[msg.authorRole] || 'bg-slate-500/15 text-slate-400'}`}>
                         {roleLabels[msg.authorRole] || msg.authorRole}
                       </span>
-                      <span className="text-xs text-slate-400">{formatTimestamp(msg.createdAt)}</span>
+                      <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-700">{msg.content}</p>
+                    <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                    <TagPills tags={msgTags} />
                   </div>
                 </div>
               )
@@ -444,9 +457,26 @@ export default function ThreadView({
         )}
       </div>
 
-      {/* Input */}
-      <div className="border-t border-slate-200 bg-white p-4">
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+      {/* Smart Compose Box */}
+      <div className="border-t border-border bg-main p-4">
+        {/* Smart tags bar */}
+        {newMessage.trim() === '' ? (
+          <p className="mb-2 text-xs text-text-muted">Smart tags will appear as you type...</p>
+        ) : composeTags.length > 0 ? (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-text-muted">Auto-detected:</span>
+            {composeTags.map((tag) => (
+              <span
+                key={tag.id}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}
+              >
+                {tag.icon} {tag.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <form onSubmit={handleSendMessage}>
           <textarea
             ref={textareaRef}
             rows={1}
@@ -455,16 +485,48 @@ export default function ThreadView({
             onInput={handleTextareaInput}
             onKeyDown={handleKeyDown}
             placeholder={session?.user ? `Comment as ${session.user.name}...` : 'Add a comment...'}
-            className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="max-h-24 w-full resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           />
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSending ? 'Sent' : 'Send'}
-          </button>
+
+          {/* Toolbar row */}
+          <div className="mt-2 flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </button>
+              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </button>
+              <button type="button" className="rounded p-1.5 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary">
+                @
+              </button>
+            </div>
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || isSending}
+              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                newMessage.trim() && !isSending
+                  ? 'bg-accent text-dark hover:bg-amber-500'
+                  : 'cursor-not-allowed bg-card text-text-muted'
+              }`}
+            >
+              {isSending ? 'Sent' : newMessage.trim() ? 'Send \u2191' : 'Send'}
+            </button>
+          </div>
         </form>
+
+        {/* Hint text */}
+        <p className="mt-2 text-xs text-text-muted">Glue auto-detects trades, delays, inspections, and work items from your message</p>
       </div>
     </div>
   )

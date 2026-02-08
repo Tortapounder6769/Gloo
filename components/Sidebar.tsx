@@ -1,112 +1,291 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useParams, useSearchParams, usePathname } from 'next/navigation'
+import { CHANNELS } from '@/lib/channels'
+import { getProjects, initializeStore } from '@/lib/store'
+import { Project } from '@/types/models'
 
-export default function Sidebar() {
+interface SidebarProps {
+  sidebarOpen?: boolean
+  onClose?: () => void
+}
+
+const COLLAPSED_KEY = 'constructionglue-sidebar-collapsed'
+
+const directMessages = [
+  { name: 'Sarah Chen', initials: 'SC', color: 'bg-cg-purple', online: true },
+  { name: 'Mike Rodriguez', initials: 'MR', color: 'bg-cg-blue', online: true },
+  { name: 'Alex Kim', initials: 'AK', color: 'bg-cg-green', online: false },
+]
+
+export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) {
   const { data: session } = useSession()
+  const params = useParams()
+  const searchParams = useSearchParams()
   const pathname = usePathname()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
 
-  const navItems = [
-    {
-      href: '/projects',
-      label: 'Projects',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-        </svg>
-      ),
-    },
-    {
-      href: '/projects',
-      label: 'Schedule',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-        </svg>
-      ),
-    },
-    {
-      href: '/log',
-      label: 'Daily Log',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-        </svg>
-      ),
-      isAmber: true,
-    },
-  ]
+  const currentProjectId = params?.id as string | undefined
+  const currentChannel = searchParams?.get('channel') || undefined
+  const isOnLogPage = pathname?.includes('/log')
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(COLLAPSED_KEY)
+      if (stored === 'true') {
+        setIsCollapsed(true)
+      }
+    }
+  }, [])
+
+  // Load projects from store on mount
+  useEffect(() => {
+    initializeStore()
+    const allProjects = getProjects()
+    if (session?.user?.projectIds) {
+      const filtered = allProjects.filter((p) =>
+        session.user.projectIds.includes(p.id)
+      )
+      setProjects(filtered)
+    }
+  }, [session?.user?.projectIds])
+
+  const toggleCollapsed = () => {
+    const next = !isCollapsed
+    setIsCollapsed(next)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(COLLAPSED_KEY, String(next))
+    }
+  }
 
   const userInitials = session?.user?.name
     ?.split(' ')
-    .map(n => n[0])
+    .map((n: string) => n[0])
     .join('')
     .toUpperCase() || '?'
 
-  return (
-    <div className="flex h-full w-16 flex-col bg-slate-800">
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
-          CG
+  const statusDotColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-cg-green'
+      case 'on_hold':
+        return 'bg-yellow-400'
+      case 'completed':
+        return 'bg-text-muted'
+      default:
+        return 'bg-text-muted'
+    }
+  }
+
+  const sidebarWidth = isCollapsed ? 'w-[60px]' : 'w-[260px]'
+
+  const sidebarContent = (
+    <div className={`flex h-full ${sidebarWidth} flex-col bg-sidebar transition-all duration-200`}>
+      {/* Header / Logo */}
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
+            G
+          </div>
+          {!isCollapsed && (
+            <div className="text-lg font-bold whitespace-nowrap">
+              <span className="text-text-primary">Construction</span>
+              <span className="text-accent">Glue</span>
+            </div>
+          )}
+        </div>
+        {/* Collapse toggle - hidden on mobile */}
+        <button
+          onClick={toggleCollapsed}
+          className="hidden md:flex h-6 w-6 shrink-0 items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-[#2a2e36] transition-colors"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <svg
+            className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Scrollable middle section */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Active Projects */}
+        <div className="mt-2 px-4 mb-2">
+          {!isCollapsed && (
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Active Projects
+            </h3>
+          )}
+        </div>
+        <div>
+          {projects.map((project) => {
+            const isActive = currentProjectId === project.id
+            return (
+              <Link
+                key={project.id}
+                href={`/projects/${project.id}?channel=general`}
+                onClick={onClose}
+                className={`flex items-center gap-2 px-4 py-1.5 text-sm transition-colors ${
+                  isActive
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-text-secondary hover:bg-[#2a2e36] hover:text-text-primary'
+                }`}
+                title={isCollapsed ? project.name : undefined}
+              >
+                <span
+                  className={`inline-block h-2 w-2 shrink-0 rounded-full ${statusDotColor(project.status)}`}
+                />
+                {!isCollapsed && (
+                  <span className="truncate">{project.name}</span>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Channels - only show when a project is selected */}
+        {currentProjectId && (
+          <>
+            <div className="mt-6 px-4 mb-2">
+              {!isCollapsed && (
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Channels
+                </h3>
+              )}
+            </div>
+            <div>
+              {CHANNELS.map((channel) => {
+                const isDailyLog = channel.id === 'daily-log'
+                const href = isDailyLog
+                  ? `/projects/${currentProjectId}/log`
+                  : `/projects/${currentProjectId}?channel=${channel.id}`
+
+                const isActiveChannel = isDailyLog
+                  ? isOnLogPage
+                  : currentChannel === channel.id
+
+                return (
+                  <Link
+                    key={channel.id}
+                    href={href}
+                    onClick={onClose}
+                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      isActiveChannel
+                        ? 'bg-accent-soft text-accent'
+                        : 'text-text-secondary hover:bg-[#2a2e36]'
+                    }`}
+                    title={isCollapsed ? channel.name : undefined}
+                  >
+                    <span className="shrink-0 text-text-muted">#</span>
+                    {!isCollapsed && (
+                      <>
+                        <span>{channel.name}</span>
+                        {channel.id === 'concrete' && (
+                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                            3
+                          </span>
+                        )}
+                        {channel.id === 'safety' && (
+                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                            1
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Direct Messages */}
+        <div className="mt-6 px-4 mb-2">
+          {!isCollapsed && (
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Direct Messages
+            </h3>
+          )}
+        </div>
+        <div>
+          {directMessages.map((dm) => (
+            <Link
+              key={dm.name}
+              href="/projects"
+              onClick={onClose}
+              className="flex items-center gap-2 px-4 py-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
+              title={isCollapsed ? dm.name : undefined}
+            >
+              <div className="relative shrink-0">
+                <div
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${dm.color} text-[10px] font-bold text-white`}
+                >
+                  {dm.initials}
+                </div>
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-sidebar ${
+                    dm.online ? 'bg-cg-green' : 'bg-text-muted'
+                  }`}
+                />
+              </div>
+              {!isCollapsed && <span className="truncate">{dm.name}</span>}
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex flex-1 flex-col items-center gap-2 py-4">
-        {navItems.map((item, index) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={index}
-              href={item.href}
-              title={item.label}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                isActive
-                  ? item.isAmber
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-slate-700 text-white'
-                  : item.isAmber
-                    ? 'text-amber-400 hover:bg-slate-700 hover:text-amber-300'
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-              }`}
+      {/* Bottom User Section - pinned to bottom */}
+      <div className="mt-auto border-t border-border px-4 py-4">
+        <div className="relative flex items-center gap-3">
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-dark transition-colors hover:opacity-90"
+              title={session?.user?.name || 'User'}
             >
-              {item.icon}
-            </Link>
-          )
-        })}
-      </nav>
+              {userInitials}
+            </button>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-cg-green ring-2 ring-sidebar" />
+          </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-bold text-text-primary">
+                {session?.user?.name || 'User'}
+              </div>
+              <div className="text-xs text-text-muted">
+                {session?.user?.role === 'superintendent' ? 'Superintendent' : 'Project Manager'}
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* User Avatar */}
-      <div className="relative flex flex-col items-center pb-4">
-        <button
-          onClick={() => setShowUserMenu(!showUserMenu)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-600 text-sm font-medium text-white transition-colors hover:bg-slate-500"
-          title={session?.user?.name || 'User'}
-        >
-          {userInitials}
-        </button>
-
-        {/* Dropdown Menu */}
+        {/* User Dropdown Menu */}
         {showUserMenu && (
           <>
             <div
               className="fixed inset-0 z-10"
               onClick={() => setShowUserMenu(false)}
             />
-            <div className="absolute bottom-14 left-2 z-20 w-48 rounded-lg bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5">
-              <div className="px-4 py-2 text-sm text-gray-700">
-                <div className="font-medium">{session?.user?.name}</div>
-                <div className="text-xs text-gray-500">{session?.user?.email}</div>
+            <div className="absolute bottom-16 left-4 z-20 w-52 rounded-lg border border-border bg-card py-2 shadow-lg">
+              <div className="px-4 py-2 text-sm">
+                <div className="font-medium text-text-primary">{session?.user?.name}</div>
+                <div className="text-xs text-text-muted">{session?.user?.email}</div>
               </div>
-              <hr className="my-1" />
+              <hr className="my-1 border-border" />
               <button
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-dark hover:text-text-primary"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
@@ -118,5 +297,216 @@ export default function Sidebar() {
         )}
       </div>
     </div>
+  )
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Desktop sidebar - always visible */}
+      <div className="hidden md:block">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile sidebar - slides in (always expanded on mobile) */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Override collapsed state on mobile - always show expanded */}
+        <div className="flex h-full w-[260px] flex-col bg-sidebar">
+          {/* Re-render expanded sidebar for mobile */}
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
+                G
+              </div>
+              <div className="text-lg font-bold whitespace-nowrap">
+                <span className="text-text-primary">Construction</span>
+                <span className="text-accent">Glue</span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-6 w-6 items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-[#2a2e36] transition-colors"
+              aria-label="Close sidebar"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Scrollable middle */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Active Projects */}
+            <div className="mt-2 px-4 mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Active Projects
+              </h3>
+            </div>
+            <div>
+              {projects.map((project) => {
+                const isActive = currentProjectId === project.id
+                return (
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}?channel=general`}
+                    onClick={onClose}
+                    className={`flex items-center gap-2 px-4 py-1.5 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-accent-soft text-accent'
+                        : 'text-text-secondary hover:bg-[#2a2e36] hover:text-text-primary'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-2 w-2 shrink-0 rounded-full ${statusDotColor(project.status)}`}
+                    />
+                    <span className="truncate">{project.name}</span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Channels */}
+            {currentProjectId && (
+              <>
+                <div className="mt-6 px-4 mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    Channels
+                  </h3>
+                </div>
+                <div>
+                  {CHANNELS.map((channel) => {
+                    const isDailyLog = channel.id === 'daily-log'
+                    const href = isDailyLog
+                      ? `/projects/${currentProjectId}/log`
+                      : `/projects/${currentProjectId}?channel=${channel.id}`
+
+                    const isActiveChannel = isDailyLog
+                      ? isOnLogPage
+                      : currentChannel === channel.id
+
+                    return (
+                      <Link
+                        key={channel.id}
+                        href={href}
+                        onClick={onClose}
+                        className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                          isActiveChannel
+                            ? 'bg-accent-soft text-accent'
+                            : 'text-text-secondary hover:bg-[#2a2e36]'
+                        }`}
+                      >
+                        <span className="shrink-0 text-text-muted">#</span>
+                        <span>{channel.name}</span>
+                        {channel.id === 'concrete' && (
+                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                            3
+                          </span>
+                        )}
+                        {channel.id === 'safety' && (
+                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                            1
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Direct Messages */}
+            <div className="mt-6 px-4 mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Direct Messages
+              </h3>
+            </div>
+            <div>
+              {directMessages.map((dm) => (
+                <Link
+                  key={dm.name}
+                  href="/projects"
+                  onClick={onClose}
+                  className="flex items-center gap-2 px-4 py-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
+                >
+                  <div className="relative shrink-0">
+                    <div
+                      className={`flex h-6 w-6 items-center justify-center rounded-full ${dm.color} text-[10px] font-bold text-white`}
+                    >
+                      {dm.initials}
+                    </div>
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-sidebar ${
+                        dm.online ? 'bg-cg-green' : 'bg-text-muted'
+                      }`}
+                    />
+                  </div>
+                  <span className="truncate">{dm.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom User Section */}
+          <div className="mt-auto border-t border-border px-4 py-4">
+            <div className="relative flex items-center gap-3">
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-dark transition-colors hover:opacity-90"
+                  title={session?.user?.name || 'User'}
+                >
+                  {userInitials}
+                </button>
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-cg-green ring-2 ring-sidebar" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-text-primary">
+                  {session?.user?.name || 'User'}
+                </div>
+                <div className="text-xs text-text-muted">
+                  {session?.user?.role === 'superintendent' ? 'Superintendent' : 'Project Manager'}
+                </div>
+              </div>
+            </div>
+
+            {showUserMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div className="absolute bottom-16 left-4 z-20 w-52 rounded-lg border border-border bg-card py-2 shadow-lg">
+                  <div className="px-4 py-2 text-sm">
+                    <div className="font-medium text-text-primary">{session?.user?.name}</div>
+                    <div className="text-xs text-text-muted">{session?.user?.email}</div>
+                  </div>
+                  <hr className="my-1 border-border" />
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-dark hover:text-text-primary"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

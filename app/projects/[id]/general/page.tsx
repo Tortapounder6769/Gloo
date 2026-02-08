@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
-// Redirect old general thread URLs to the new two-column layout
+// Redirect general thread URLs to the channel-based layout
 export default function GeneralThreadRedirect() {
   const params = useParams()
   const router = useRouter()
@@ -11,15 +11,13 @@ export default function GeneralThreadRedirect() {
 
   useEffect(() => {
     if (projectId) {
-      sessionStorage.setItem('selectedProjectId', projectId)
-      sessionStorage.setItem('activeTab', 'general')
-      router.replace('/projects')
+      router.replace(`/projects/${projectId}?channel=general`)
     }
   }, [projectId, router])
 
   return (
     <div className="flex h-full items-center justify-center">
-      <p className="text-slate-500">Redirecting...</p>
+      <p className="text-text-muted">Redirecting...</p>
     </div>
   )
 }

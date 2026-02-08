@@ -2,46 +2,35 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { Project, ScheduleItem, Message, DailyLog } from '@/types/models'
+import { useRouter } from 'next/navigation'
+import { Project } from '@/types/models'
 import {
   getProjects,
   getScheduleItemsForProject,
-  getMessagesForThread,
   getUnreadCountForThread,
-  getDailyLogsForProject,
   initializeStore,
 } from '@/lib/store'
-import ProjectList from '@/components/ProjectList'
-import ProjectDetail from '@/components/ProjectDetail'
-import ThreadView from '@/components/ThreadView'
 
-type ViewMode = 'detail' | 'thread'
-type ActiveTab = 'schedule' | 'activity' | 'general'
+const statusStyles: Record<string, string> = {
+  active: 'bg-green-500/15 text-green-400',
+  on_hold: 'bg-yellow-500/15 text-yellow-400',
+  completed: 'bg-slate-500/15 text-slate-400',
+}
+
+const statusLabels: Record<string, string> = {
+  active: 'Active',
+  on_hold: 'On Hold',
+  completed: 'Completed',
+}
 
 export default function ProjectsPage() {
   const { data: session } = useSession()
+  const router = useRouter()
 
-  // Project list state
   const [projects, setProjects] = useState<Project[]>([])
   const [projectUnreadCounts, setProjectUnreadCounts] = useState<Record<string, number>>({})
-
-  // Selected project state
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([])
-  const [generalMessages, setGeneralMessages] = useState<Message[]>([])
-  const [itemMessages, setItemMessages] = useState<Record<string, Message[]>>({})
-  const [itemUnreads, setItemUnreads] = useState<Record<string, number>>({})
-  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
-
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('detail')
-  const [activeTab, setActiveTab] = useState<ActiveTab>('schedule')
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load project list
   const loadProjectList = useCallback(() => {
     if (!session?.user) return
 
@@ -64,164 +53,89 @@ export default function ProjectsPage() {
       counts[project.id] = total
     })
     setProjectUnreadCounts(counts)
+    setIsLoading(false)
   }, [session])
 
-  // Load selected project data
-  const loadProjectData = useCallback(() => {
-    if (!session?.user || !selectedProjectId) return
-
-    const project = projects.find(p => p.id === selectedProjectId)
-    if (!project) return
-
-    setSelectedProject(project)
-
-    const items = getScheduleItemsForProject(selectedProjectId)
-    setScheduleItems(items)
-
-    const genMsgs = getMessagesForThread(selectedProjectId, null)
-    setGeneralMessages(genMsgs)
-
-    const msgMap: Record<string, Message[]> = {}
-    const unreadMap: Record<string, number> = {}
-    items.forEach(item => {
-      msgMap[item.id] = getMessagesForThread(selectedProjectId, item.id)
-      unreadMap[item.id] = getUnreadCountForThread(session.user.id, selectedProjectId, item.id)
-    })
-    setItemMessages(msgMap)
-    setItemUnreads(unreadMap)
-
-    setDailyLogs(getDailyLogsForProject(selectedProjectId))
-  }, [session, selectedProjectId, projects])
-
-  // Initial load
   useEffect(() => {
-    if (!session?.user) return
-    loadProjectList()
-
-    // Check for pre-selected project from redirect
-    const storedProjectId = sessionStorage.getItem('selectedProjectId')
-    const storedTab = sessionStorage.getItem('activeTab') as ActiveTab | null
-    const storedItemId = sessionStorage.getItem('selectedItemId')
-
-    if (storedProjectId) {
-      sessionStorage.removeItem('selectedProjectId')
-      sessionStorage.removeItem('activeTab')
-      sessionStorage.removeItem('selectedItemId')
-      setSelectedProjectId(storedProjectId)
-      if (storedTab) {
-        setActiveTab(storedTab)
-      }
-      if (storedItemId) {
-        setSelectedItemId(storedItemId)
-        setViewMode('thread')
-      }
+    if (session?.user) {
+      loadProjectList()
     }
-
-    setIsLoading(false)
   }, [session, loadProjectList])
 
-  // Load project data when selection changes
-  useEffect(() => {
-    if (selectedProjectId) {
-      loadProjectData()
-    }
-  }, [selectedProjectId, loadProjectData])
-
   const handleSelectProject = (projectId: string) => {
-    setSelectedProjectId(projectId)
-    setViewMode('detail')
-    setActiveTab('schedule')
-    setSelectedItemId(null)
+    router.push(`/projects/${projectId}?channel=general`)
   }
-
-  const handleTabChange = (tab: ActiveTab) => {
-    setActiveTab(tab)
-  }
-
-  const handleSelectItem = (itemId: string) => {
-    setSelectedItemId(itemId)
-    setViewMode('thread')
-  }
-
-  const handleBackFromThread = () => {
-    setViewMode('detail')
-    setSelectedItemId(null)
-  }
-
-  const handleDataChange = () => {
-    loadProjectData()
-    loadProjectList()
-  }
-
-  const handleItemDelete = () => {
-    setViewMode('detail')
-    setSelectedItemId(null)
-    handleDataChange()
-  }
-
-  const selectedItem = selectedItemId
-    ? scheduleItems.find(i => i.id === selectedItemId)
-    : null
-
-  const selectedItemMessages = selectedItemId
-    ? itemMessages[selectedItemId] || []
-    : []
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-slate-500">Loading...</p>
+        <p className="text-text-muted">Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex h-full">
-      {/* Left Panel - Project List */}
-      <div className="w-[280px] shrink-0 border-r border-slate-200 bg-slate-50">
-        <ProjectList
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          unreadCounts={projectUnreadCounts}
-          onSelectProject={handleSelectProject}
-        />
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="border-b border-border bg-main px-6 py-4">
+        <h1 className="text-xl font-semibold text-text-primary">Projects</h1>
+        <p className="mt-1 text-sm text-text-muted">Select a project to view channels and messages</p>
       </div>
 
-      {/* Right Panel - Project Detail or Thread */}
-      <div className="flex-1 overflow-hidden bg-white">
-        {!selectedProjectId ? (
+      {/* Project list */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {projects.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card">
+              <svg className="h-8 w-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
               </svg>
             </div>
-            <h2 className="text-lg font-medium text-slate-900">Select a project</h2>
-            <p className="mt-1 text-sm text-slate-500">Choose a project from the list to view details</p>
+            <h2 className="text-lg font-medium text-text-primary">No projects found</h2>
+            <p className="mt-1 text-sm text-text-muted">You are not assigned to any projects yet.</p>
           </div>
-        ) : viewMode === 'thread' && selectedItem ? (
-          <ThreadView
-            projectId={selectedProjectId}
-            scheduleItem={selectedItem}
-            messages={selectedItemMessages}
-            onBack={handleBackFromThread}
-            onDataChange={handleDataChange}
-            onDelete={handleItemDelete}
-          />
-        ) : selectedProject ? (
-          <ProjectDetail
-            project={selectedProject}
-            scheduleItems={scheduleItems}
-            generalMessages={generalMessages}
-            itemMessages={itemMessages}
-            itemUnreads={itemUnreads}
-            dailyLogs={dailyLogs}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            onSelectItem={handleSelectItem}
-            onDataChange={handleDataChange}
-          />
-        ) : null}
+        ) : (
+          <div className="mx-auto max-w-2xl space-y-3">
+            {projects.map((project) => {
+              const unreadCount = projectUnreadCounts[project.id] || 0
+
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => handleSelectProject(project.id)}
+                  className="w-full rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-accent/30"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-lg font-medium text-text-primary">
+                          {project.name}
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
+                          {statusLabels[project.status]}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-text-secondary">{project.address}</p>
+                      <p className="mt-0.5 text-xs text-text-muted">
+                        Contract: {project.contractNumber}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-accent px-2 text-xs font-bold text-dark">
+                          {unreadCount}
+                        </span>
+                      )}
+                      <svg className="h-5 w-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -8,7 +8,7 @@ const KEYS = {
   messages: 'constructionglue-messages',
   readTimestamps: 'constructionglue-read-timestamps',
   dailyLogs: 'constructionglue-daily-logs',
-  initialized: 'constructionglue-initialized',
+  initialized: 'constructionglue-initialized-v2',
 };
 
 // Helper to check if we're in browser
@@ -323,6 +323,71 @@ export function updateDailyLogParsedData(
 
   saveToStorage(KEYS.dailyLogs, logs);
   return logs[index];
+}
+
+// ============ ALL MESSAGES FOR PROJECT ============
+
+export function getAllMessagesForProject(projectId: string): Message[] {
+  const messages = getFromStorage<Message[]>(KEYS.messages, [])
+  return messages
+    .filter(msg => msg.projectId === projectId)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+}
+
+// ============ CHANNEL READ TRACKING ============
+
+export function markChannelAsRead(userId: string, projectId: string, channelId: string): void {
+  const key = 'constructionglue-channel-read-timestamps'
+  const allTimestamps = getFromStorage<Record<string, Record<string, string>>>(key, {})
+  if (!allTimestamps[userId]) allTimestamps[userId] = {}
+  allTimestamps[userId][`${projectId}:${channelId}`] = new Date().toISOString()
+  saveToStorage(key, allTimestamps)
+}
+
+export function getChannelLastReadTimestamp(userId: string, projectId: string, channelId: string): string | null {
+  const key = 'constructionglue-channel-read-timestamps'
+  const allTimestamps = getFromStorage<Record<string, Record<string, string>>>(key, {})
+  const userTimestamps = allTimestamps[userId] || {}
+  return userTimestamps[`${projectId}:${channelId}`] || null
+}
+
+export function getUnreadCountsByChannel(userId: string, projectId: string): Record<string, number> {
+  const { detectTags } = require('@/lib/detectTags')
+  const { CHANNELS } = require('@/lib/channels')
+  const allMessages = getAllMessagesForProject(projectId)
+  const key = 'constructionglue-channel-read-timestamps'
+  const allTimestamps = getFromStorage<Record<string, Record<string, string>>>(key, {})
+  const userTimestamps = allTimestamps[userId] || {}
+
+  const counts: Record<string, number> = {}
+
+  for (const channel of CHANNELS) {
+    const channelKey = `${projectId}:${channel.id}`
+    const lastRead = userTimestamps[channelKey] || null
+    const lastReadTime = lastRead ? new Date(lastRead).getTime() : 0
+
+    let channelMessages: typeof allMessages = []
+
+    if (channel.type === 'general') {
+      channelMessages = allMessages.filter(msg => msg.scheduleItemId === null)
+    } else if (channel.type === 'tag-filter' || channel.type === 'schedule-view') {
+      channelMessages = allMessages.filter(msg => {
+        const tags = detectTags(msg.content)
+        return tags.some((tag: { id: string }) => channel.tagIds.includes(tag.id))
+      })
+    } else {
+      // navigation channels like daily-log don't have unread counts
+      counts[channel.id] = 0
+      continue
+    }
+
+    counts[channel.id] = channelMessages.filter(msg =>
+      msg.authorId !== userId &&
+      new Date(msg.createdAt).getTime() > lastReadTime
+    ).length
+  }
+
+  return counts
 }
 
 // ============ RESET ============

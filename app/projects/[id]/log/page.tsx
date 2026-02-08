@@ -217,9 +217,9 @@ export default function DailyLogPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen p-4 md:p-8">
+      <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
         <div className="mx-auto max-w-3xl">
-          <div className="flex h-64 items-center justify-center text-gray-500">
+          <div className="flex h-64 items-center justify-center text-text-muted">
             Loading...
           </div>
         </div>
@@ -229,13 +229,13 @@ export default function DailyLogPage() {
 
   if (!project) {
     return (
-      <main className="min-h-screen p-4 md:p-8">
+      <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
         <div className="mx-auto max-w-3xl">
-          <Link href="/projects" className="mb-4 inline-block text-blue-600 hover:text-blue-800 hover:underline">
-            ← Back to Projects
+          <Link href="/projects" className="mb-4 inline-block text-cg-blue hover:text-blue-300">
+            &larr; Back to Projects
           </Link>
-          <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-            <h3 className="text-lg font-medium text-gray-900">Project not found</h3>
+          <div className="rounded-lg border border-border bg-card p-12 text-center">
+            <h3 className="text-lg font-medium text-text-primary">Project not found</h3>
           </div>
         </div>
       </main>
@@ -248,27 +248,27 @@ export default function DailyLogPage() {
   )
 
   return (
-    <main className="min-h-screen p-4 md:p-8">
+    <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
         <div className="mb-6">
           <Link
             href={`/projects/${projectId}`}
-            className="mb-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+            className="mb-2 inline-flex items-center gap-1 text-sm text-cg-blue hover:text-blue-300"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back to Project
           </Link>
-          <h1 className="text-2xl font-bold">{project.name}</h1>
-          <p className="text-sm text-gray-500">Daily Log</p>
+          <h1 className="text-2xl font-bold text-text-primary">{project.name}</h1>
+          <p className="text-sm text-text-muted">Daily Log</p>
         </div>
 
         {/* Date picker + History toggle */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Date:</label>
+            <label className="text-sm font-medium text-text-secondary">Date:</label>
             <input
               type="date"
               value={selectedDate}
@@ -276,17 +276,17 @@ export default function DailyLogPage() {
                 setSelectedDate(e.target.value)
                 setShowHistory(false)
               }}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
-          <span className="text-sm text-gray-500">{formatLogDate(selectedDate)}</span>
+          <span className="text-sm text-text-secondary">{formatLogDate(selectedDate)}</span>
           <div className="ml-auto">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                 showHistory
-                  ? 'border-amber-400 bg-amber-50 text-amber-800'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-border text-text-secondary hover:bg-card'
               }`}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -301,21 +301,21 @@ export default function DailyLogPage() {
           /* History View */
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Past Entries</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Past Entries</h2>
               <button
                 onClick={() => {
                   setSelectedDate(new Date().toISOString().split('T')[0])
                   setShowHistory(false)
                 }}
-                className="text-sm text-amber-700 hover:text-amber-900 hover:underline"
+                className="text-sm text-accent hover:text-amber-400"
               >
                 Go to today
               </button>
             </div>
 
             {allLogs.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-                <p className="text-gray-500">No log entries yet.</p>
+              <div className="rounded-lg border border-border bg-card p-8 text-center">
+                <p className="text-text-muted">No log entries yet.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -326,25 +326,25 @@ export default function DailyLogPage() {
                       setSelectedDate(log.date)
                       setShowHistory(false)
                     }}
-                    className="w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
+                    className="w-full rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-gray-900">{formatShortDate(log.date)}</span>
+                          <span className="font-medium text-text-primary">{formatShortDate(log.date)}</span>
                           {log.weather && (
-                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{log.weather}</span>
+                            <span className="rounded-full bg-slate-500/15 px-2 py-0.5 text-xs text-slate-400">{log.weather}</span>
                           )}
                           {log.crewCount != null && (
-                            <span className="text-xs text-gray-400">{log.crewCount} crew</span>
+                            <span className="text-xs text-text-muted">{log.crewCount} crew</span>
                           )}
                           {log.parsedData && (
-                            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-600">AI parsed</span>
+                            <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-xs text-cg-purple">AI parsed</span>
                           )}
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">{truncate(log.rawEntry)}</p>
+                        <p className="mt-1 text-sm text-text-secondary">{truncate(log.rawEntry)}</p>
                       </div>
-                      <svg className="mt-1 h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="mt-1 h-4 w-4 flex-shrink-0 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
@@ -359,11 +359,11 @@ export default function DailyLogPage() {
             {/* Optional fields */}
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Weather</label>
+                <label className="mb-1 block text-sm font-medium text-text-secondary">Weather</label>
                 <select
                   value={weather}
                   onChange={(e) => setWeather(e.target.value as WeatherCondition | '')}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="">-- Select --</option>
                   {weatherOptions.map((w) => (
@@ -372,24 +372,24 @@ export default function DailyLogPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Crew Count</label>
+                <label className="mb-1 block text-sm font-medium text-text-secondary">Crew Count</label>
                 <input
                   type="number"
                   min={0}
                   value={crewCount}
                   onChange={(e) => setCrewCount(e.target.value)}
                   placeholder="e.g., 12"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Visitors</label>
+                <label className="mb-1 block text-sm font-medium text-text-secondary">Visitors</label>
                 <input
                   type="text"
                   value={visitors}
                   onChange={(e) => setVisitors(e.target.value)}
                   placeholder="e.g., Inspector, GC rep"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
             </div>
@@ -400,14 +400,14 @@ export default function DailyLogPage() {
                 value={rawEntry}
                 onChange={(e) => setRawEntry(e.target.value)}
                 placeholder={PLACEHOLDER_TEXT}
-                className="min-h-[300px] w-full resize-y rounded-lg border border-gray-300 px-4 py-3 text-sm leading-relaxed focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="min-h-[300px] w-full resize-y rounded-lg border border-border bg-input px-4 py-3 text-sm leading-relaxed text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
             {/* Save status */}
             <div className="mt-2 flex items-center justify-end gap-2 text-sm">
               {saveStatus === 'saving' && (
-                <span className="inline-flex items-center gap-1.5 text-gray-500">
+                <span className="inline-flex items-center gap-1.5 text-text-muted">
                   <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -416,7 +416,7 @@ export default function DailyLogPage() {
                 </span>
               )}
               {saveStatus === 'saved' && (
-                <span className="inline-flex items-center gap-1.5 text-green-600">
+                <span className="inline-flex items-center gap-1.5 text-cg-green">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
@@ -427,15 +427,15 @@ export default function DailyLogPage() {
 
             {/* AI Insights Panel */}
             {(parseStatus === 'parsing' || hasInsights || parseStatus === 'error') && (
-              <div className="mt-6 rounded-lg border border-violet-200 bg-violet-50 p-4">
+              <div className="mt-6 rounded-lg border border-purple-500/20 bg-purple-500/10 p-4">
                 {/* Header */}
                 <div className="mb-3 flex items-center gap-2">
-                  <svg className="h-4 w-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4 text-cg-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                   </svg>
-                  <h3 className="text-sm font-semibold text-violet-900">AI Insights</h3>
+                  <h3 className="text-sm font-semibold text-cg-purple">AI Insights</h3>
                   {parseStatus === 'parsing' && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-violet-600">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-purple-400">
                       <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -446,7 +446,7 @@ export default function DailyLogPage() {
                 </div>
 
                 {parseStatus === 'error' && (
-                  <p className="text-xs text-violet-700">Couldn&apos;t analyze entry. Your log is saved.</p>
+                  <p className="text-xs text-purple-300">Couldn&apos;t analyze entry. Your log is saved.</p>
                 )}
 
                 {parsedData && hasInsights && (
@@ -454,9 +454,9 @@ export default function DailyLogPage() {
                     {/* Weather */}
                     {parsedData.weather && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Weather</div>
-                        <p className="text-sm text-gray-700">
-                          {parsedData.weather.condition} — <span className="text-gray-500">{parsedData.weather.details}</span>
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Weather</div>
+                        <p className="text-sm text-text-secondary">
+                          <span className="text-text-primary">{parsedData.weather.condition}</span> — {parsedData.weather.details}
                         </p>
                       </div>
                     )}
@@ -464,16 +464,16 @@ export default function DailyLogPage() {
                     {/* Crew Breakdown */}
                     {parsedData.crew && parsedData.crew.length > 0 && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Crew</div>
-                        <div className="text-sm text-gray-700">
-                          <div className="mb-1 font-medium">
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Crew</div>
+                        <div className="text-sm text-text-secondary">
+                          <div className="mb-1 font-medium text-text-primary">
                             {parsedData.crew.reduce((sum, c) => sum + c.count, 0)} total
                           </div>
                           <div className="space-y-0.5">
                             {parsedData.crew.map((c, i) => (
                               <div key={i} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-700">{c.company}{c.role ? ` — ${c.role}` : ''}</span>
-                                <span className="font-medium text-gray-900">{c.count}</span>
+                                <span className="text-text-secondary">{c.company}{c.role ? ` \u2014 ${c.role}` : ''}</span>
+                                <span className="font-medium text-text-primary">{c.count}</span>
                               </div>
                             ))}
                           </div>
@@ -484,19 +484,19 @@ export default function DailyLogPage() {
                     {/* Deliveries */}
                     {parsedData.deliveries && parsedData.deliveries.length > 0 && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Deliveries & Materials</div>
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Deliveries & Materials</div>
                         <div className="space-y-1">
                           {parsedData.deliveries.map((d, i) => (
                             <div key={i} className="text-sm">
-                              <span className="font-medium text-gray-900">{d.material}</span>
+                              <span className="font-medium text-text-primary">{d.material}</span>
                               <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                d.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                                d.status === 'Delayed' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
+                                d.status === 'Delivered' ? 'bg-green-500/15 text-cg-green' :
+                                d.status === 'Delayed' ? 'bg-red-500/15 text-cg-red' :
+                                'bg-yellow-500/15 text-yellow-400'
                               }`}>
                                 {d.status}
                               </span>
-                              {d.details && <span className="ml-2 text-gray-500">{d.details}</span>}
+                              {d.details && <span className="ml-2 text-text-secondary">{d.details}</span>}
                             </div>
                           ))}
                         </div>
@@ -506,21 +506,21 @@ export default function DailyLogPage() {
                     {/* Inspections */}
                     {parsedData.inspections && parsedData.inspections.length > 0 && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Inspections</div>
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Inspections</div>
                         <div className="space-y-1">
                           {parsedData.inspections.map((insp, i) => (
                             <div key={i} className="text-sm">
-                              <span className="font-medium text-gray-900">{insp.inspector}</span>
-                              <span className="mx-1 text-gray-400">—</span>
-                              <span className="text-gray-700">{insp.area}</span>
+                              <span className="font-medium text-text-primary">{insp.inspector}</span>
+                              <span className="mx-1 text-text-muted">&mdash;</span>
+                              <span className="text-text-secondary">{insp.area}</span>
                               <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                insp.result === 'Passed' ? 'bg-green-100 text-green-800' :
-                                insp.result === 'Failed' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
+                                insp.result === 'Passed' ? 'bg-green-500/15 text-cg-green' :
+                                insp.result === 'Failed' ? 'bg-red-500/15 text-cg-red' :
+                                'bg-yellow-500/15 text-yellow-400'
                               }`}>
                                 {insp.result}
                               </span>
-                              {insp.details && <span className="ml-2 text-gray-500">{insp.details}</span>}
+                              {insp.details && <span className="ml-2 text-text-secondary">{insp.details}</span>}
                             </div>
                           ))}
                         </div>
@@ -530,12 +530,12 @@ export default function DailyLogPage() {
                     {/* Delays */}
                     {parsedData.delays && parsedData.delays.length > 0 && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Delays & Issues</div>
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Delays & Issues</div>
                         <div className="space-y-1">
                           {parsedData.delays.map((d, i) => (
                             <div key={i} className="text-sm">
-                              <span className="font-medium text-gray-900">{d.issue}</span>
-                              {d.impact && <span className="ml-1 text-gray-500">— {d.impact}</span>}
+                              <span className="font-medium text-text-primary">{d.issue}</span>
+                              {d.impact && <span className="ml-1 text-text-secondary">&mdash; {d.impact}</span>}
                             </div>
                           ))}
                         </div>
@@ -545,20 +545,20 @@ export default function DailyLogPage() {
                     {/* Work Completed */}
                     {parsedData.workCompleted && parsedData.workCompleted.length > 0 && (
                       <div>
-                        <div className="mb-1 text-xs font-medium uppercase text-violet-700">Work Completed</div>
+                        <div className="mb-1 text-xs font-medium uppercase text-purple-400">Work Completed</div>
                         <div className="space-y-1">
                           {parsedData.workCompleted.map((w, i) => (
                             <div key={i} className="flex items-start gap-2 text-sm">
-                              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-cg-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                               </svg>
                               <div>
-                                <span className="text-gray-900">{w.description}</span>
-                                {w.location && <span className="ml-1 text-gray-500">({w.location})</span>}
+                                <span className="text-text-primary">{w.description}</span>
+                                {w.location && <span className="ml-1 text-text-secondary">({w.location})</span>}
                                 {w.scheduleItemId && w.scheduleItemTitle && (
                                   <Link
                                     href={`/projects/${projectId}/item/${w.scheduleItemId}`}
-                                    className="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
+                                    className="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-cg-blue hover:bg-blue-500/25"
                                   >
                                     {w.scheduleItemTitle}
                                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

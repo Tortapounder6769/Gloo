@@ -27,6 +27,22 @@ const users: Array<{
     role: 'project_manager',
     projectIds: ['project-1', 'project-2'],
   },
+  {
+    id: 'user_foreman',
+    email: 'foreman@construction.com',
+    password: 'foreman123',
+    name: 'Carlos Martinez',
+    role: 'foreman' as Role,
+    projectIds: ['project-1'],
+  },
+  {
+    id: 'user_sub',
+    email: 'sub@construction.com',
+    password: 'sub123',
+    name: 'Alex Kim',
+    role: 'subcontractor' as Role,
+    projectIds: ['project-1', 'project-2'],
+  },
 ]
 
 export const authOptions: NextAuthOptions = {

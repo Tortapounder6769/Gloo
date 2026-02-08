@@ -9,6 +9,8 @@ import {
   updateScheduleItemStatus,
   createScheduleItem,
 } from '@/lib/store'
+import { detectTags } from '@/lib/detectTags'
+import { formatTimestamp, pluralize } from '@/lib/formatTimestamp'
 
 interface ProjectDetailProps {
   project: Project
@@ -24,11 +26,19 @@ interface ProjectDetailProps {
 }
 
 const statusStyles: Record<string, string> = {
-  not_started: 'bg-slate-100 text-slate-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  completed: 'bg-green-100 text-green-700',
-  at_risk: 'bg-orange-100 text-orange-700',
-  blocked: 'bg-red-100 text-red-700',
+  not_started: 'bg-slate-500/20 text-slate-400',
+  in_progress: 'bg-blue-500/20 text-cg-blue',
+  completed: 'bg-green-500/20 text-cg-green',
+  at_risk: 'bg-orange-500/20 text-orange-400',
+  blocked: 'bg-red-500/20 text-cg-red',
+}
+
+const statusBarColors: Record<string, string> = {
+  not_started: 'bg-slate-500',
+  in_progress: 'bg-cg-blue',
+  completed: 'bg-cg-green',
+  at_risk: 'bg-orange-400',
+  blocked: 'bg-cg-red',
 }
 
 const statusLabels: Record<string, string> = {
@@ -40,9 +50,9 @@ const statusLabels: Record<string, string> = {
 }
 
 const projectStatusStyles: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  on_hold: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-slate-100 text-slate-600',
+  active: 'bg-green-500/15 text-cg-green',
+  on_hold: 'bg-yellow-500/15 text-yellow-400',
+  completed: 'bg-slate-500/15 text-slate-400',
 }
 
 const projectStatusLabels: Record<string, string> = {
@@ -52,10 +62,17 @@ const projectStatusLabels: Record<string, string> = {
 }
 
 const roleBadgeStyles: Record<string, string> = {
-  superintendent: 'bg-orange-100 text-orange-800',
-  project_manager: 'bg-purple-100 text-purple-800',
-  foreman: 'bg-blue-100 text-blue-800',
-  subcontractor: 'bg-slate-100 text-slate-800',
+  superintendent: 'bg-orange-500/20 text-orange-400',
+  project_manager: 'bg-purple-500/20 text-cg-purple',
+  foreman: 'bg-blue-500/20 text-cg-blue',
+  subcontractor: 'bg-slate-500/20 text-slate-400',
+}
+
+const roleAvatarColors: Record<string, string> = {
+  superintendent: 'bg-orange-500/20 text-orange-400',
+  project_manager: 'bg-purple-500/20 text-cg-purple',
+  foreman: 'bg-blue-500/20 text-cg-blue',
+  subcontractor: 'bg-slate-500/20 text-slate-400',
 }
 
 const roleLabels: Record<string, string> = {
@@ -68,6 +85,8 @@ const roleLabels: Record<string, string> = {
 const userNames: Record<string, string> = {
   'user_super': 'Mike Sullivan',
   'user_pm': 'Sarah Chen',
+  'user_foreman': 'Carlos Martinez',
+  'user_sub': 'Alex Kim',
 }
 
 export default function ProjectDetail({
@@ -99,6 +118,8 @@ export default function ProjectDetail({
 
   const today = new Date().toISOString().split('T')[0]
   const hasTodayLog = dailyLogs.some(log => log.date === today)
+
+  const composeTags = detectTags(newMessage)
 
   const scrollToBottom = useCallback((instant = false) => {
     const el = scrollContainerRef.current
@@ -193,28 +214,6 @@ export default function ProjectDetail({
     onDataChange()
   }
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-
-    const isToday = date.toDateString() === now.toDateString()
-    if (isToday) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-
-    if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
@@ -257,17 +256,17 @@ export default function ProjectDetail({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4">
+      <div className="border-b border-border bg-main px-6 py-4">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-slate-900">{project.name}</h1>
+              <h1 className="text-xl font-semibold text-text-primary">{project.name}</h1>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${projectStatusStyles[project.status]}`}>
                 {projectStatusLabels[project.status]}
               </span>
             </div>
-            <p className="mt-1 text-sm text-slate-500">{project.address}</p>
-            <p className="text-xs text-slate-400">{formatDateRange(project.startDate, project.endDate)}</p>
+            <p className="mt-1 text-sm text-text-secondary">{project.address}</p>
+            <p className="text-xs text-text-muted">{formatDateRange(project.startDate, project.endDate)}</p>
           </div>
         </div>
 
@@ -279,8 +278,8 @@ export default function ProjectDetail({
               onClick={() => onTabChange(tab)}
               className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-accent text-dark'
+                  : 'text-text-secondary hover:bg-card hover:text-text-primary'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -298,7 +297,7 @@ export default function ProjectDetail({
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as ScheduleItemStatus | 'all')}
-                className="rounded-md border border-slate-200 px-2 py-1 text-sm"
+                className="rounded-md border border-border bg-input px-2 py-1 text-sm text-text-secondary"
               >
                 <option value="all">All</option>
                 <option value="not_started">Not Started</option>
@@ -310,7 +309,7 @@ export default function ProjectDetail({
             </div>
             <button
               onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-dark hover:bg-amber-500"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -321,7 +320,7 @@ export default function ProjectDetail({
 
           {/* Add Form */}
           {showAddForm && (
-            <form onSubmit={handleAddItem} className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <form onSubmit={handleAddItem} className="mb-4 rounded-lg border border-border bg-card p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <input
                   type="text"
@@ -329,14 +328,14 @@ export default function ProjectDetail({
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   required
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
                 <input
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
                   required
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
               <input
@@ -344,19 +343,19 @@ export default function ProjectDetail({
                 placeholder="Description (optional)"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
-                className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="mt-3 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <div className="mt-3 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                  className="rounded-md px-3 py-1.5 text-sm text-text-secondary hover:bg-dark"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                  className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-dark"
                 >
                   Add
                 </button>
@@ -367,7 +366,7 @@ export default function ProjectDetail({
           {/* Schedule Items */}
           <div className="space-y-2">
             {filteredItems.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-500">No items found</p>
+              <p className="py-8 text-center text-sm text-text-muted">No items found</p>
             ) : (
               filteredItems.map((item) => {
                 const msgs = itemMessages[item.id] || []
@@ -379,55 +378,59 @@ export default function ProjectDetail({
                   <button
                     key={item.id}
                     onClick={() => onSelectItem(item.id)}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm"
+                    className="w-full overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-accent/30"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-slate-900">{item.title}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[item.status]}`}>
-                            {statusLabels[item.status]}
-                          </span>
-                          {isPastDue && (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                              Past Due
+                    {/* Status color bar */}
+                    <div className={`h-1 ${statusBarColors[item.status]}`} />
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-text-primary">{item.title}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[item.status]}`}>
+                              {statusLabels[item.status]}
+                            </span>
+                            {isPastDue && (
+                              <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-cg-red">
+                                Past Due
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-3 text-xs text-text-muted">
+                            <span>Due {formatDate(item.dueDate)}</span>
+                            {item.assignedTo && <span>{userNames[item.assignedTo]}</span>}
+                            <span>{pluralize(msgs.length, 'comment')}</span>
+                          </div>
+                          {lastMsg && (
+                            <p className="mt-2 text-sm text-text-secondary">
+                              <span className="font-medium text-text-primary">{lastMsg.authorName}:</span>{' '}
+                              {truncateMessage(lastMsg.content, 60)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {item.status !== 'completed' ? (
+                            <button
+                              onClick={(e) => handleMarkComplete(e, item.id)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-text-muted hover:border-cg-green hover:text-cg-green"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500/20 text-cg-green">
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                          {unread > 0 && (
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                              {unread}
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                          <span>Due {formatDate(item.dueDate)}</span>
-                          {item.assignedTo && <span>{userNames[item.assignedTo]}</span>}
-                          <span>{msgs.length} comments</span>
-                        </div>
-                        {lastMsg && (
-                          <p className="mt-2 text-sm text-slate-600">
-                            <span className="font-medium">{lastMsg.authorName}:</span>{' '}
-                            {truncateMessage(lastMsg.content, 60)}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        {item.status !== 'completed' ? (
-                          <button
-                            onClick={(e) => handleMarkComplete(e, item.id)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-400 hover:border-green-500 hover:bg-green-50 hover:text-green-600"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-green-600">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                        )}
-                        {unread > 0 && (
-                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
-                            {unread}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </button>
@@ -441,31 +444,44 @@ export default function ProjectDetail({
       {activeTab === 'activity' && (
         <div className="flex-1 overflow-y-auto p-6">
           {activityFeed.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">No activity yet</p>
+            <p className="py-8 text-center text-sm text-text-muted">No activity yet</p>
           ) : (
             <div className="space-y-3">
-              {activityFeed.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="rounded-lg border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
-                      {msg.authorName.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-slate-900">{msg.authorName}</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                          {msg.threadName}
-                        </span>
-                        <span className="text-xs text-slate-400">{formatTimestamp(msg.createdAt)}</span>
+              {activityFeed.map((msg) => {
+                const msgTags = detectTags(msg.content)
+                return (
+                  <div
+                    key={msg.id}
+                    className="rounded-lg border border-border bg-card p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${roleAvatarColors[msg.authorRole] || 'bg-slate-500/20 text-slate-400'}`}>
+                        {msg.authorName.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <p className="mt-1 text-sm text-slate-700">{msg.content}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-text-primary">{msg.authorName}</span>
+                          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">
+                            {msg.threadName}
+                          </span>
+                          <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                        {msgTags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {msgTags.map(tag => (
+                              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
+                                <span>{tag.icon}</span>
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -480,21 +496,32 @@ export default function ProjectDetail({
             onScroll={() => { shouldAutoScrollRef.current = isNearBottom() }}
           >
             {generalMessages.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-500">No messages yet. Start the conversation!</p>
+              <p className="py-8 text-center text-sm text-text-muted">No messages yet. Start the conversation!</p>
             ) : (
               <div className="space-y-1">
                 {generalMessages.map((msg, index) => {
                   const prevMsg = index > 0 ? generalMessages[index - 1] : null
                   const isGrouped = prevMsg?.authorId === msg.authorId
+                  const msgTags = detectTags(msg.content)
 
                   if (isGrouped) {
                     return (
                       <div key={msg.id} className="flex gap-3 pl-11">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm text-slate-700">{msg.content}</p>
-                            <span className="shrink-0 text-xs text-slate-400">{formatTimestamp(msg.createdAt)}</span>
+                            <p className="text-sm text-text-secondary">{msg.content}</p>
+                            <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                           </div>
+                          {msgTags.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {msgTags.map(tag => (
+                                <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
+                                  <span>{tag.icon}</span>
+                                  {tag.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
@@ -502,18 +529,28 @@ export default function ProjectDetail({
 
                   return (
                     <div key={msg.id} className={`flex gap-3 ${index > 0 ? 'mt-4' : ''}`}>
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${roleAvatarColors[msg.authorRole] || 'bg-slate-500/20 text-slate-400'}`}>
                         {msg.authorName.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-slate-900">{msg.authorName}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[msg.authorRole] || 'bg-slate-100 text-slate-800'}`}>
+                          <span className="font-medium text-text-primary">{msg.authorName}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[msg.authorRole] || 'bg-slate-500/20 text-slate-400'}`}>
                             {roleLabels[msg.authorRole] || msg.authorRole}
                           </span>
-                          <span className="text-xs text-slate-400">{formatTimestamp(msg.createdAt)}</span>
+                          <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                         </div>
-                        <p className="mt-1 text-sm text-slate-700">{msg.content}</p>
+                        <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                        {msgTags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {msgTags.map(tag => (
+                              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
+                                <span>{tag.icon}</span>
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -523,7 +560,18 @@ export default function ProjectDetail({
           </div>
 
           {/* Input */}
-          <div className="border-t border-slate-200 bg-white p-4">
+          <div className="border-t border-border bg-main p-4">
+            {/* Tag detection pills */}
+            {composeTags.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {composeTags.map(tag => (
+                  <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
+                    <span>{tag.icon}</span>
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            )}
             <form onSubmit={handleSendMessage} className="flex items-end gap-3">
               <textarea
                 ref={textareaRef}
@@ -533,16 +581,23 @@ export default function ProjectDetail({
                 onInput={handleTextareaInput}
                 onKeyDown={handleKeyDown}
                 placeholder={session?.user ? `Message as ${session.user.name}...` : 'Type a message...'}
-                className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <button
                 type="submit"
                 disabled={!newMessage.trim() || isSending}
-                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+                  !newMessage.trim() || isSending
+                    ? 'cursor-not-allowed bg-card text-text-muted'
+                    : 'bg-accent text-dark hover:bg-amber-500'
+                }`}
               >
                 {isSending ? 'Sent' : 'Send'}
               </button>
             </form>
+            {newMessage.trim() && (
+              <p className="mt-1.5 text-xs text-text-muted">Press Enter to send, Shift+Enter for new line</p>
+            )}
           </div>
         </div>
       )}

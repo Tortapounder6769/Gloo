@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
-// Redirect old item thread URLs to the new two-column layout
+// Redirect item thread URLs to the channel-based layout
 export default function ItemThreadRedirect() {
   const params = useParams()
   const router = useRouter()
@@ -12,15 +12,13 @@ export default function ItemThreadRedirect() {
 
   useEffect(() => {
     if (projectId && itemId) {
-      sessionStorage.setItem('selectedProjectId', projectId)
-      sessionStorage.setItem('selectedItemId', itemId)
-      router.replace('/projects')
+      router.replace(`/projects/${projectId}?channel=schedule&item=${itemId}`)
     }
   }, [projectId, itemId, router])
 
   return (
     <div className="flex h-full items-center justify-center">
-      <p className="text-slate-500">Redirecting...</p>
+      <p className="text-text-muted">Redirecting...</p>
     </div>
   )
 }
