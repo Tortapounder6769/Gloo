@@ -1,15 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { Message } from '@/types/models'
 import { ChannelConfig } from '@/lib/channels'
 import { detectTags, DetectedTag } from '@/lib/detectTags'
 import { formatTimestamp } from '@/lib/formatTimestamp'
+import { createMessage, markChannelAsRead } from '@/lib/store'
 
 interface ChannelViewProps {
   projectId: string
   channelConfig: ChannelConfig
   allMessages: Message[]
+  onDataChange?: () => void
 }
 
 const roleBadgeStyles: Record<string, string> = {
@@ -49,7 +52,13 @@ function TagPills({ tags }: { tags: DetectedTag[] }) {
   )
 }
 
-export default function ChannelView({ projectId, channelConfig, allMessages }: ChannelViewProps) {
+export default function ChannelView({ projectId, channelConfig, allMessages, onDataChange }: ChannelViewProps) {
+  const { data: session } = useSession()
+  const [newMessage, setNewMessage] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
   const filteredMessages = useMemo(() => {
     return allMessages.filter(msg => {
       const tags = detectTags(msg.content)
@@ -57,43 +66,87 @@ export default function ChannelView({ projectId, channelConfig, allMessages }: C
     })
   }, [allMessages, channelConfig.tagIds])
 
+  const composeTags = useMemo(() => detectTags(newMessage), [newMessage])
+
   const tagLabels = channelConfig.tagIds
     .map(id => {
-      // Find tag label from a dummy detect
       const tagMap: Record<string, string> = {
-        concrete: 'concrete',
-        electrical: 'electrical',
-        framing: 'framing',
-        plumbing: 'plumbing',
-        hvac: 'HVAC',
-        roofing: 'roofing',
-        safety: 'safety',
-        rfi: 'RFI',
-        inspection: 'inspection',
-        schedule: 'schedule',
-        delay: 'delay',
-        weather: 'weather',
+        concrete: 'concrete', electrical: 'electrical', framing: 'framing',
+        plumbing: 'plumbing', hvac: 'HVAC', roofing: 'roofing', safety: 'safety',
+        rfi: 'RFI', inspection: 'inspection', schedule: 'schedule',
+        delay: 'delay', weather: 'weather',
       }
       return tagMap[id] || id
     })
     .join(', ')
 
+  // Mark channel as read on mount
+  useEffect(() => {
+    if (session?.user?.id) {
+      markChannelAsRead(session.user.id, projectId, channelConfig.id)
+    }
+  }, [session?.user?.id, projectId, channelConfig.id])
+
+  // Scroll to bottom when messages change
+  const scrollToBottom = useCallback((instant = false) => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: instant ? 'auto' : 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    if (filteredMessages.length > 0) {
+      setTimeout(() => scrollToBottom(true), 50)
+    }
+  }, [filteredMessages.length, scrollToBottom])
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMessage.trim() || !session?.user || isSending) return
+
+    setIsSending(true)
+
+    // Post to general thread — the tag detection will make it show in this channel
+    createMessage(
+      projectId,
+      null,
+      session.user.id,
+      session.user.name,
+      session.user.role,
+      newMessage.trim()
+    )
+
+    setNewMessage('')
+    markChannelAsRead(session.user.id, projectId, channelConfig.id)
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
+    setTimeout(() => {
+      setIsSending(false)
+      onDataChange?.()
+      scrollToBottom()
+    }, 100)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage(e as unknown as React.FormEvent)
+    }
+  }
+
+  const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+
   return (
     <div className="flex h-full flex-col">
-      {/* Filter banner */}
-      <div className="border-b border-border bg-accent/5 px-6 py-3">
-        <div className="flex items-center gap-2">
-          <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <p className="text-sm text-text-secondary">
-            Messages are auto-filtered by trade tags. Post in <span className="font-medium text-accent">#general</span> to add messages.
-          </p>
-        </div>
-      </div>
-
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
         {filteredMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card">
@@ -113,7 +166,6 @@ export default function ChannelView({ projectId, channelConfig, allMessages }: C
               const isGrouped = prevMsg?.authorId === msg.authorId
               const msgTags = detectTags(msg.content)
 
-              // Find what thread this message is from
               const threadLabel = msg.scheduleItemId ? 'Schedule Item' : 'General'
 
               if (isGrouped) {
@@ -154,6 +206,46 @@ export default function ChannelView({ projectId, channelConfig, allMessages }: C
             })}
           </div>
         )}
+      </div>
+
+      {/* Compose box */}
+      <div className="border-t border-border bg-main p-4">
+        {composeTags.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {composeTags.map(tag => (
+              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
+                <span>{tag.icon}</span>
+                {tag.label}
+              </span>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onInput={handleTextareaInput}
+            onKeyDown={handleKeyDown}
+            placeholder={session?.user ? `Message #${channelConfig.name} as ${session.user.name}...` : 'Type a message...'}
+            className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim() || isSending}
+            className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+              !newMessage.trim() || isSending
+                ? 'cursor-not-allowed bg-card text-text-muted'
+                : 'bg-accent text-dark hover:bg-amber-500'
+            }`}
+          >
+            {isSending ? 'Sent' : 'Send'}
+          </button>
+        </form>
+        <p className="mt-1.5 text-xs text-text-muted">
+          Messages post to #general and appear here when they match #{channelConfig.name} tags
+        </p>
       </div>
     </div>
   )

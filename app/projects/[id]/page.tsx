@@ -474,6 +474,7 @@ export default function ProjectChannelPage() {
           projectId={projectId}
           channelConfig={channelConfig}
           allMessages={allMessages}
+          onDataChange={loadData}
         />
       )
     }

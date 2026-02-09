@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useParams, useSearchParams, usePathname } from 'next/navigation'
 import { CHANNELS } from '@/lib/channels'
-import { getProjects, initializeStore } from '@/lib/store'
+import { getProjects, getUnreadCountsByChannel, initializeStore } from '@/lib/store'
 import { Project } from '@/types/models'
 
 interface SidebarProps {
@@ -29,6 +29,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
+  const [channelUnreads, setChannelUnreads] = useState<Record<string, number>>({})
 
   const currentProjectId = params?.id as string | undefined
   const currentChannel = searchParams?.get('channel') || undefined
@@ -55,6 +56,14 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
       setProjects(filtered)
     }
   }, [session?.user?.projectIds])
+
+  // Load unread counts for current project
+  useEffect(() => {
+    if (session?.user?.id && currentProjectId) {
+      const counts = getUnreadCountsByChannel(session.user.id, currentProjectId)
+      setChannelUnreads(counts)
+    }
+  }, [session?.user?.id, currentProjectId, currentChannel])
 
   const toggleCollapsed = () => {
     const next = !isCollapsed
@@ -191,14 +200,9 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                     {!isCollapsed && (
                       <>
                         <span>{channel.name}</span>
-                        {channel.id === 'concrete' && (
+                        {(channelUnreads[channel.id] || 0) > 0 && (
                           <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
-                            3
-                          </span>
-                        )}
-                        {channel.id === 'safety' && (
-                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
-                            1
+                            {channelUnreads[channel.id]}
                           </span>
                         )}
                       </>
@@ -220,12 +224,11 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
         </div>
         <div>
           {directMessages.map((dm) => (
-            <Link
+            <button
               key={dm.name}
-              href="/projects"
-              onClick={onClose}
-              className="flex items-center gap-2 px-4 py-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
-              title={isCollapsed ? dm.name : undefined}
+              className="flex w-full items-center gap-2 px-4 py-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
+              title={isCollapsed ? dm.name : 'Direct messages coming soon'}
+              onClick={() => {}}
             >
               <div className="relative shrink-0">
                 <div
@@ -240,7 +243,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                 />
               </div>
               {!isCollapsed && <span className="truncate">{dm.name}</span>}
-            </Link>
+            </button>
           ))}
         </div>
       </div>
@@ -408,14 +411,9 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                       >
                         <span className="shrink-0 text-text-muted">#</span>
                         <span>{channel.name}</span>
-                        {channel.id === 'concrete' && (
+                        {(channelUnreads[channel.id] || 0) > 0 && (
                           <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
-                            3
-                          </span>
-                        )}
-                        {channel.id === 'safety' && (
-                          <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
-                            1
+                            {channelUnreads[channel.id]}
                           </span>
                         )}
                       </Link>

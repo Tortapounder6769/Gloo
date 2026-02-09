@@ -1,5 +1,7 @@
 import { Project, ScheduleItem, Message, ScheduleItemStatus, DailyLog, WeatherCondition, ParsedLogData } from '@/types/models';
 import { seedProjects, seedScheduleItems, seedMessages, seedDailyLogs } from './seedData';
+import { detectTags } from './detectTags';
+import { CHANNELS } from './channels';
 
 // Storage keys
 const KEYS = {
@@ -352,8 +354,6 @@ export function getChannelLastReadTimestamp(userId: string, projectId: string, c
 }
 
 export function getUnreadCountsByChannel(userId: string, projectId: string): Record<string, number> {
-  const { detectTags } = require('@/lib/detectTags')
-  const { CHANNELS } = require('@/lib/channels')
   const allMessages = getAllMessagesForProject(projectId)
   const key = 'constructionglue-channel-read-timestamps'
   const allTimestamps = getFromStorage<Record<string, Record<string, string>>>(key, {})
