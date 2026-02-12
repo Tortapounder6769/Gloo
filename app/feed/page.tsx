@@ -12,6 +12,7 @@ const ROLE_COLORS: Record<string, string> = {
   project_manager: 'bg-purple-500/20 text-purple-400',
   foreman: 'bg-blue-500/20 text-blue-400',
   subcontractor: 'bg-slate-500/20 text-slate-400',
+  owner: 'bg-green-500/20 text-green-400',
 }
 
 function getInitials(name: string): string {

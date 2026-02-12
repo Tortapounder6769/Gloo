@@ -59,6 +59,7 @@ const roleBadgeStyles: Record<string, string> = {
   project_manager: 'bg-purple-500/15 text-cg-purple',
   foreman: 'bg-blue-500/15 text-cg-blue',
   subcontractor: 'bg-slate-500/15 text-slate-400',
+  owner: 'bg-green-500/15 text-green-400',
 }
 
 const roleAvatarStyles: Record<string, string> = {
@@ -66,6 +67,7 @@ const roleAvatarStyles: Record<string, string> = {
   project_manager: 'bg-purple-500/20 text-cg-purple',
   foreman: 'bg-blue-500/20 text-cg-blue',
   subcontractor: 'bg-slate-500/20 text-slate-400',
+  owner: 'bg-green-500/20 text-green-400',
 }
 
 const roleLabels: Record<string, string> = {
@@ -73,6 +75,7 @@ const roleLabels: Record<string, string> = {
   project_manager: 'PM',
   foreman: 'Foreman',
   subcontractor: 'Sub',
+  owner: 'Owner',
 }
 
 const userNames: Record<string, string> = {
@@ -80,6 +83,7 @@ const userNames: Record<string, string> = {
   'user_pm': 'Sarah Chen',
   'user_foreman': 'Carlos Martinez',
   'user_sub': 'Alex Kim',
+  'user_owner': 'David Park',
 }
 
 const allStatuses: ScheduleItemStatus[] = ['not_started', 'in_progress', 'completed', 'at_risk', 'blocked']
@@ -87,16 +91,9 @@ const allStatuses: ScheduleItemStatus[] = ['not_started', 'in_progress', 'comple
 function TagPills({ tags }: { tags: DetectedTag[] }) {
   if (tags.length === 0) return null
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {tags.map((tag) => (
-        <span
-          key={tag.id}
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}
-        >
-          {tag.icon} {tag.label}
-        </span>
-      ))}
-    </div>
+    <span className="mt-1 text-xs text-slate-500">
+      {tags.map(t => t.label).join(' \u00B7 ')}
+    </span>
   )
 }
 
@@ -383,6 +380,7 @@ export default function ThreadView({
                     { id: 'user_pm', name: 'Sarah Chen' },
                     { id: 'user_foreman', name: 'Carlos Martinez' },
                     { id: 'user_sub', name: 'Alex Kim' },
+                    { id: 'user_owner', name: 'David Park' },
                   ].map(user => (
                     <label key={user.id} className="flex items-center gap-2 text-sm text-text-secondary">
                       <input
@@ -479,16 +477,8 @@ export default function ThreadView({
         {newMessage.trim() === '' ? (
           <p className="mb-2 text-xs text-text-muted">Smart tags will appear as you type...</p>
         ) : composeTags.length > 0 ? (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-text-muted">Auto-detected:</span>
-            {composeTags.map((tag) => (
-              <span
-                key={tag.id}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}
-              >
-                {tag.icon} {tag.label}
-              </span>
-            ))}
+          <div className="mb-2 text-xs text-slate-500">
+            {composeTags.map(t => t.label).join(' \u00B7 ')}
           </div>
         ) : null}
 

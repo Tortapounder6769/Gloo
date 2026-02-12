@@ -43,6 +43,14 @@ const users: Array<{
     role: 'subcontractor' as Role,
     projectIds: ['project-1', 'project-2'],
   },
+  {
+    id: 'user_owner',
+    email: 'owner@construction.com',
+    password: 'owner123',
+    name: 'David Park',
+    role: 'owner' as Role,
+    projectIds: ['project-1', 'project-2'],
+  },
 ]
 
 export const authOptions: NextAuthOptions = {

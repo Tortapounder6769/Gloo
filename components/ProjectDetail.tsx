@@ -66,6 +66,7 @@ const roleBadgeStyles: Record<string, string> = {
   project_manager: 'bg-purple-500/20 text-cg-purple',
   foreman: 'bg-blue-500/20 text-cg-blue',
   subcontractor: 'bg-slate-500/20 text-slate-400',
+  owner: 'bg-green-500/15 text-green-400',
 }
 
 const roleAvatarColors: Record<string, string> = {
@@ -73,6 +74,7 @@ const roleAvatarColors: Record<string, string> = {
   project_manager: 'bg-purple-500/20 text-cg-purple',
   foreman: 'bg-blue-500/20 text-cg-blue',
   subcontractor: 'bg-slate-500/20 text-slate-400',
+  owner: 'bg-green-500/20 text-green-400',
 }
 
 const roleLabels: Record<string, string> = {
@@ -87,6 +89,7 @@ const userNames: Record<string, string> = {
   'user_pm': 'Sarah Chen',
   'user_foreman': 'Carlos Martinez',
   'user_sub': 'Alex Kim',
+  'user_owner': 'David Park',
 }
 
 export default function ProjectDetail({
@@ -468,14 +471,9 @@ export default function ProjectDetail({
                         </div>
                         <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
                         {msgTags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {msgTags.map(tag => (
-                              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
-                                <span>{tag.icon}</span>
-                                {tag.label}
-                              </span>
-                            ))}
-                          </div>
+                          <span className="text-xs text-slate-500">
+                            {msgTags.map(t => t.label).join(' · ')}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -513,14 +511,9 @@ export default function ProjectDetail({
                             <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                           </div>
                           {msgTags.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              {msgTags.map(tag => (
-                                <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
-                                  <span>{tag.icon}</span>
-                                  {tag.label}
-                                </span>
-                              ))}
-                            </div>
+                            <span className="text-xs text-slate-500">
+                              {msgTags.map(t => t.label).join(' · ')}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -542,14 +535,9 @@ export default function ProjectDetail({
                         </div>
                         <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
                         {msgTags.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            {msgTags.map(tag => (
-                              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
-                                <span>{tag.icon}</span>
-                                {tag.label}
-                              </span>
-                            ))}
-                          </div>
+                          <span className="text-xs text-slate-500">
+                            {msgTags.map(t => t.label).join(' · ')}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -563,14 +551,9 @@ export default function ProjectDetail({
           <div className="border-t border-border bg-main p-4">
             {/* Tag detection pills */}
             {composeTags.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {composeTags.map(tag => (
-                  <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
-                    <span>{tag.icon}</span>
-                    {tag.label}
-                  </span>
-                ))}
-              </div>
+              <span className="mb-2 text-xs text-slate-500">
+                {composeTags.map(t => t.label).join(' · ')}
+              </span>
             )}
             <form onSubmit={handleSendMessage} className="flex items-end gap-3">
               <textarea

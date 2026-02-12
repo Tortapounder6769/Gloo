@@ -20,6 +20,7 @@ const roleBadgeStyles: Record<string, string> = {
   project_manager: 'bg-purple-500/15 text-purple-400',
   foreman: 'bg-blue-500/15 text-blue-400',
   subcontractor: 'bg-slate-500/15 text-slate-400',
+  owner: 'bg-green-500/15 text-green-400',
 }
 
 const roleAvatarStyles: Record<string, string> = {
@@ -27,6 +28,7 @@ const roleAvatarStyles: Record<string, string> = {
   project_manager: 'bg-purple-500/20 text-purple-400',
   foreman: 'bg-blue-500/20 text-blue-400',
   subcontractor: 'bg-slate-500/20 text-slate-400',
+  owner: 'bg-green-500/20 text-green-400',
 }
 
 const roleLabels: Record<string, string> = {
@@ -34,21 +36,15 @@ const roleLabels: Record<string, string> = {
   project_manager: 'PM',
   foreman: 'Foreman',
   subcontractor: 'Sub',
+  owner: 'Owner',
 }
 
 function TagPills({ tags }: { tags: DetectedTag[] }) {
   if (tags.length === 0) return null
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {tags.map((tag) => (
-        <span
-          key={tag.id}
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}
-        >
-          {tag.icon} {tag.label}
-        </span>
-      ))}
-    </div>
+    <span className="mt-1 text-xs text-slate-500">
+      {tags.map(t => t.label).join(' \u00B7 ')}
+    </span>
   )
 }
 
@@ -211,13 +207,8 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
       {/* Compose box */}
       <div className="border-t border-border bg-main p-4">
         {composeTags.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {composeTags.map(tag => (
-              <span key={tag.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>
-                <span>{tag.icon}</span>
-                {tag.label}
-              </span>
-            ))}
+          <div className="mb-2 text-xs text-slate-500">
+            {composeTags.map(t => t.label).join(' \u00B7 ')}
           </div>
         )}
         <form onSubmit={handleSendMessage} className="flex items-end gap-3">

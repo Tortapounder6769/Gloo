@@ -1,4 +1,4 @@
-export type Role = 'superintendent' | 'project_manager' | 'foreman' | 'subcontractor';
+export type Role = 'superintendent' | 'project_manager' | 'foreman' | 'subcontractor' | 'owner';
 
 export type ProjectStatus = 'active' | 'completed' | 'on_hold';
 

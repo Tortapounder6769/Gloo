@@ -10,7 +10,7 @@ const KEYS = {
   messages: 'constructionglue-messages',
   readTimestamps: 'constructionglue-read-timestamps',
   dailyLogs: 'constructionglue-daily-logs',
-  initialized: 'constructionglue-initialized-v3',
+  initialized: 'constructionglue-initialized-v4',
 };
 
 // Helper to check if we're in browser
@@ -442,8 +442,9 @@ export function getThreadsForUser(
 
       const canSee =
         userRole === 'project_manager' ||  // PM sees all
-        item.assignedTo.includes(userId) ||  // Assigned to user
-        item.watcherIds.includes(userId)     // User is watching
+        (userRole === 'owner'
+          ? item.watcherIds.includes(userId)  // Owner only sees watched items
+          : (item.assignedTo.includes(userId) || item.watcherIds.includes(userId)))  // Others see assigned + watched
 
       if (!canSee) continue
 
