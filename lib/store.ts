@@ -10,7 +10,7 @@ const KEYS = {
   messages: 'constructionglue-messages',
   readTimestamps: 'constructionglue-read-timestamps',
   dailyLogs: 'constructionglue-daily-logs',
-  initialized: 'constructionglue-initialized-v2',
+  initialized: 'constructionglue-initialized-v3',
 };
 
 // Helper to check if we're in browser
@@ -84,7 +84,7 @@ export function createScheduleItem(
   title: string,
   dueDate: string,
   description?: string,
-  assignedTo?: string
+  assignedTo: string[] = []
 ): ScheduleItem {
   const items = getFromStorage<ScheduleItem[]>(KEYS.scheduleItems, []);
   const projectItems = items.filter(item => item.projectId === projectId);
@@ -101,6 +101,7 @@ export function createScheduleItem(
     dueDate,
     status: 'not_started',
     assignedTo,
+    watcherIds: [],
     order: maxOrder + 1,
     createdAt: now,
     updatedAt: now,
@@ -132,7 +133,7 @@ export function updateScheduleItemStatus(
 
 export function updateScheduleItem(
   itemId: string,
-  updates: Partial<Pick<ScheduleItem, 'title' | 'description' | 'dueDate' | 'assignedTo'>>
+  updates: Partial<Pick<ScheduleItem, 'title' | 'description' | 'dueDate' | 'assignedTo' | 'watcherIds'>>
 ): ScheduleItem | undefined {
   const items = getFromStorage<ScheduleItem[]>(KEYS.scheduleItems, []);
   const index = items.findIndex(item => item.id === itemId);
@@ -388,6 +389,101 @@ export function getUnreadCountsByChannel(userId: string, projectId: string): Rec
   }
 
   return counts
+}
+
+// ============ THREAD INFO FOR FEED ============
+
+export interface ThreadInfo {
+  projectId: string
+  projectName: string
+  scheduleItemId: string | null  // null = general thread
+  title: string                   // "General" or schedule item title
+  messages: Message[]
+  lastActivity: string            // ISO timestamp of last message
+  unreadCount: number
+  participants: { id: string; name: string; role: string }[]
+}
+
+export function getThreadsForUser(
+  userId: string,
+  userRole: string,
+  projectIds: string[]
+): ThreadInfo[] {
+  const results: ThreadInfo[] = []
+
+  for (const projectId of projectIds) {
+    const project = getProjectById(projectId)
+    if (!project) continue
+
+    const items = getScheduleItemsForProject(projectId)
+    const allMessages = getAllMessagesForProject(projectId)
+
+    // General thread - everyone on the project sees it
+    const generalMsgs = allMessages.filter(m => m.scheduleItemId === null)
+    if (generalMsgs.length > 0) {
+      const lastMsg = generalMsgs[generalMsgs.length - 1]
+      const participants = getUniqueParticipants(generalMsgs)
+      results.push({
+        projectId,
+        projectName: project.name,
+        scheduleItemId: null,
+        title: 'General',
+        messages: generalMsgs,
+        lastActivity: lastMsg.createdAt,
+        unreadCount: getUnreadCountForThread(userId, projectId, null),
+        participants,
+      })
+    }
+
+    // Schedule item threads - role-based visibility
+    for (const item of items) {
+      const itemMsgs = allMessages.filter(m => m.scheduleItemId === item.id)
+      if (itemMsgs.length === 0) continue  // Skip empty threads
+
+      const canSee =
+        userRole === 'project_manager' ||  // PM sees all
+        item.assignedTo.includes(userId) ||  // Assigned to user
+        item.watcherIds.includes(userId)     // User is watching
+
+      if (!canSee) continue
+
+      const lastMsg = itemMsgs[itemMsgs.length - 1]
+      const participants = getUniqueParticipants(itemMsgs)
+      results.push({
+        projectId,
+        projectName: project.name,
+        scheduleItemId: item.id,
+        title: item.title,
+        messages: itemMsgs,
+        lastActivity: lastMsg.createdAt,
+        unreadCount: getUnreadCountForThread(userId, projectId, item.id),
+        participants,
+      })
+    }
+  }
+
+  // Sort by most recent activity
+  results.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
+  return results
+}
+
+function getUniqueParticipants(messages: Message[]): { id: string; name: string; role: string }[] {
+  const seen = new Map<string, { id: string; name: string; role: string }>()
+  for (const msg of messages) {
+    if (!seen.has(msg.authorId)) {
+      seen.set(msg.authorId, { id: msg.authorId, name: msg.authorName, role: msg.authorRole })
+    }
+  }
+  return Array.from(seen.values())
+}
+
+export function getTotalUnreadForUser(
+  userId: string,
+  userRole: string,
+  projectIds: string[]
+): number {
+  const threads = getThreadsForUser(userId, userRole, projectIds)
+  return threads.reduce((sum, t) => sum + t.unreadCount, 0)
 }
 
 // ============ RESET ============

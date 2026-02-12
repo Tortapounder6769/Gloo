@@ -32,7 +32,8 @@ export interface ScheduleItem {
   description?: string;
   dueDate: string;
   status: ScheduleItemStatus;
-  assignedTo?: string;
+  assignedTo: string[];
+  watcherIds: string[];
   order: number;
   createdAt: string;
   updatedAt: string;

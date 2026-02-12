@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useParams, useSearchParams, usePathname } from 'next/navigation'
 import { CHANNELS } from '@/lib/channels'
-import { getProjects, getUnreadCountsByChannel, initializeStore } from '@/lib/store'
+import { getProjects, getUnreadCountsByChannel, getTotalUnreadForUser, initializeStore } from '@/lib/store'
 import { Project } from '@/types/models'
 
 interface SidebarProps {
@@ -30,6 +30,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [channelUnreads, setChannelUnreads] = useState<Record<string, number>>({})
+  const [feedUnread, setFeedUnread] = useState(0)
 
   const currentProjectId = params?.id as string | undefined
   const currentChannel = searchParams?.get('channel') || undefined
@@ -55,7 +56,11 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
       )
       setProjects(filtered)
     }
-  }, [session?.user?.projectIds])
+    if (session?.user) {
+      const total = getTotalUnreadForUser(session.user.id, session.user.role, session.user.projectIds || [])
+      setFeedUnread(total)
+    }
+  }, [session?.user?.projectIds, session?.user])
 
   // Load unread counts for current project
   useEffect(() => {
@@ -129,6 +134,34 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
 
       {/* Scrollable middle section */}
       <div className="flex-1 overflow-y-auto">
+        {/* Feed link */}
+        <div className="px-2 mb-2">
+          <Link
+            href="/feed"
+            onClick={onClose}
+            className={`flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+              pathname === '/feed'
+                ? 'bg-accent-soft text-accent'
+                : 'text-text-secondary hover:bg-[#2a2e36] hover:text-text-primary'
+            }`}
+            title={isCollapsed ? 'Feed' : undefined}
+          >
+            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+            </svg>
+            {!isCollapsed && (
+              <>
+                <span className="flex-1">Feed</span>
+                {feedUnread > 0 && (
+                  <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                    {feedUnread}
+                  </span>
+                )}
+              </>
+            )}
+          </Link>
+        </div>
+
         {/* Active Projects */}
         <div className="mt-2 px-4 mb-2">
           {!isCollapsed && (
@@ -350,6 +383,29 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
 
           {/* Scrollable middle */}
           <div className="flex-1 overflow-y-auto">
+            {/* Feed link */}
+            <div className="px-2 mb-2">
+              <Link
+                href="/feed"
+                onClick={onClose}
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+                  pathname === '/feed'
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-text-secondary hover:bg-[#2a2e36] hover:text-text-primary'
+                }`}
+              >
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                </svg>
+                <span className="flex-1">Feed</span>
+                {feedUnread > 0 && (
+                  <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                    {feedUnread}
+                  </span>
+                )}
+              </Link>
+            </div>
+
             {/* Active Projects */}
             <div className="mt-2 px-4 mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">

@@ -120,7 +120,7 @@ export default function ThreadView({
   const [editTitle, setEditTitle] = useState(item.title)
   const [editDescription, setEditDescription] = useState(item.description || '')
   const [editDueDate, setEditDueDate] = useState(item.dueDate)
-  const [editAssignedTo, setEditAssignedTo] = useState(item.assignedTo || '')
+  const [editAssignedTo, setEditAssignedTo] = useState<string[]>(item.assignedTo || [])
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -214,7 +214,7 @@ export default function ThreadView({
     setEditTitle(item.title)
     setEditDescription(item.description || '')
     setEditDueDate(item.dueDate)
-    setEditAssignedTo(item.assignedTo || '')
+    setEditAssignedTo(item.assignedTo || [])
     setIsEditing(true)
   }
 
@@ -224,7 +224,7 @@ export default function ThreadView({
       title: editTitle.trim(),
       description: editDescription.trim() || undefined,
       dueDate: editDueDate,
-      assignedTo: editAssignedTo || undefined,
+      assignedTo: editAssignedTo,
     })
     if (updated) setItem(updated)
     setIsEditing(false)
@@ -275,10 +275,10 @@ export default function ThreadView({
 
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-text-muted">
               <span>Due: {formatDate(item.dueDate)}</span>
-              {item.assignedTo && (
+              {item.assignedTo.length > 0 && (
                 <>
                   <span>{'\u00B7'}</span>
-                  <span>{userNames[item.assignedTo] || 'Unknown'}</span>
+                  <span>{item.assignedTo.map(id => userNames[id] || id).join(', ')}</span>
                 </>
               )}
             </div>
@@ -375,17 +375,33 @@ export default function ThreadView({
                 onChange={(e) => setEditDueDate(e.target.value)}
                 className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
-              <select
-                value={editAssignedTo}
-                onChange={(e) => setEditAssignedTo(e.target.value)}
-                className="rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              >
-                <option value="">Unassigned</option>
-                <option value="user_super">Mike Sullivan</option>
-                <option value="user_pm">Sarah Chen</option>
-                <option value="user_foreman">Carlos Martinez</option>
-                <option value="user_sub">Alex Kim</option>
-              </select>
+              <div className="space-y-1">
+                <label className="block text-xs text-text-muted">Assigned To</label>
+                <div className="space-y-1">
+                  {[
+                    { id: 'user_super', name: 'Mike Sullivan' },
+                    { id: 'user_pm', name: 'Sarah Chen' },
+                    { id: 'user_foreman', name: 'Carlos Martinez' },
+                    { id: 'user_sub', name: 'Alex Kim' },
+                  ].map(user => (
+                    <label key={user.id} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <input
+                        type="checkbox"
+                        checked={editAssignedTo.includes(user.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditAssignedTo([...editAssignedTo, user.id])
+                          } else {
+                            setEditAssignedTo(editAssignedTo.filter(id => id !== user.id))
+                          }
+                        }}
+                        className="rounded border-border bg-input text-accent focus:ring-accent"
+                      />
+                      {user.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <button

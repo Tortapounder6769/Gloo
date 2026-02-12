@@ -589,7 +589,7 @@ export default function ProjectChannelPage() {
                           </div>
                           <div className="mt-1 flex items-center gap-3 text-xs text-text-muted">
                             <span>Due {formatDate(item.dueDate)}</span>
-                            {item.assignedTo && <span>{userNames[item.assignedTo]}</span>}
+                            {item.assignedTo.length > 0 && <span>{item.assignedTo.map(id => userNames[id] || id).join(', ')}</span>}
                             <span>{pluralize(msgs.length, 'comment')}</span>
                           </div>
                           {lastMsg && (
