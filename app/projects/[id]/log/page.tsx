@@ -251,10 +251,10 @@ export default function DailyLogPage() {
     <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-5">
           <Link
             href={`/projects/${projectId}`}
-            className="mb-2 inline-flex items-center gap-1 text-sm text-cg-blue hover:text-blue-300"
+            className="mb-2 inline-flex items-center gap-1 text-sm text-text-muted hover:text-accent transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -266,9 +266,9 @@ export default function DailyLogPage() {
         </div>
 
         {/* Date picker + History toggle */}
-        <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="mb-5 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-text-secondary">Date:</label>
+            <label className="sr-only">Date:</label>
             <input
               type="date"
               value={selectedDate}
@@ -276,6 +276,7 @@ export default function DailyLogPage() {
                 setSelectedDate(e.target.value)
                 setShowHistory(false)
               }}
+              aria-label="Select date"
               className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
@@ -326,7 +327,7 @@ export default function DailyLogPage() {
                       setSelectedDate(log.date)
                       setShowHistory(false)
                     }}
-                    className="w-full rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent/30"
+                    className="group w-full rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -344,7 +345,7 @@ export default function DailyLogPage() {
                         </div>
                         <p className="mt-1 text-sm text-text-secondary">{truncate(log.rawEntry)}</p>
                       </div>
-                      <svg className="mt-1 h-4 w-4 flex-shrink-0 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="mt-1 h-4 w-4 flex-shrink-0 text-text-muted group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
@@ -357,12 +358,13 @@ export default function DailyLogPage() {
           /* Editor View */
           <div>
             {/* Optional fields */}
-            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-secondary">Weather</label>
                 <select
                   value={weather}
                   onChange={(e) => setWeather(e.target.value as WeatherCondition | '')}
+                  aria-label="Weather condition"
                   className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="">-- Select --</option>
@@ -379,6 +381,7 @@ export default function DailyLogPage() {
                   value={crewCount}
                   onChange={(e) => setCrewCount(e.target.value)}
                   placeholder="e.g., 12"
+                  aria-label="Number of crew on site"
                   className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
@@ -389,6 +392,7 @@ export default function DailyLogPage() {
                   value={visitors}
                   onChange={(e) => setVisitors(e.target.value)}
                   placeholder="e.g., Inspector, GC rep"
+                  aria-label="Site visitors"
                   className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
@@ -400,7 +404,8 @@ export default function DailyLogPage() {
                 value={rawEntry}
                 onChange={(e) => setRawEntry(e.target.value)}
                 placeholder={PLACEHOLDER_TEXT}
-                className="min-h-[300px] w-full resize-y rounded-lg border border-border bg-input px-4 py-3 text-sm leading-relaxed text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                aria-label="Daily log entry"
+                className="min-h-[280px] w-full resize-y rounded-lg border border-border bg-input px-4 py-3 text-sm leading-relaxed text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
@@ -557,7 +562,7 @@ export default function DailyLogPage() {
                                 {w.location && <span className="ml-1 text-text-secondary">({w.location})</span>}
                                 {w.scheduleItemId && w.scheduleItemTitle && (
                                   <Link
-                                    href={`/projects/${projectId}/item/${w.scheduleItemId}`}
+                                    href={`/projects/${projectId}?channel=schedule&item=${w.scheduleItemId}`}
                                     className="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-cg-blue hover:bg-blue-500/25"
                                   >
                                     {w.scheduleItemTitle}
