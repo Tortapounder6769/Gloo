@@ -73,3 +73,22 @@ export interface Message {
   content: string;
   createdAt: string;
 }
+
+export type SubLogStatus = 'pending' | 'accepted' | 'changes_requested'
+
+export interface SubLog {
+  id: string
+  projectId: string
+  date: string
+  submittedBy: string
+  submitterName: string
+  submitterRole: Role
+  rawTranscript: string
+  language: 'en' | 'es'
+  translatedTranscript?: string
+  status: SubLogStatus
+  reviewedBy?: string
+  reviewNote?: string
+  createdAt: string
+  updatedAt: string
+}

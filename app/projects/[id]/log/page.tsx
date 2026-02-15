@@ -14,6 +14,8 @@ import {
   getScheduleItemsForProject,
   initializeStore,
 } from '@/lib/store'
+import MicDock from '@/components/MicDock'
+import PromptPills from '@/components/PromptPills'
 
 const weatherOptions: WeatherCondition[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Hot', 'Cold']
 
@@ -215,6 +217,17 @@ export default function DailyLogPage() {
     return text.substring(0, maxLen).trim() + '...'
   }
 
+  const handlePromptInsert = (text: string) => {
+    setRawEntry(prev => prev + text)
+  }
+
+  const handleVoiceTranscript = (text: string) => {
+    setRawEntry(prev => {
+      const separator = prev.trim() ? ' ' : ''
+      return prev + separator + text
+    })
+  }
+
   if (isLoading) {
     return (
       <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
@@ -399,6 +412,11 @@ export default function DailyLogPage() {
             </div>
 
             {/* Main textarea */}
+            {rawEntry.trim().length < 20 && (
+              <div className="mb-3">
+                <PromptPills onInsert={handlePromptInsert} />
+              </div>
+            )}
             <div className="relative">
               <textarea
                 value={rawEntry}
@@ -428,6 +446,11 @@ export default function DailyLogPage() {
                   Saved
                 </span>
               )}
+            </div>
+
+            {/* Voice input */}
+            <div className="mt-3">
+              <MicDock onTranscript={handleVoiceTranscript} />
             </div>
 
             {/* AI Insights Panel */}

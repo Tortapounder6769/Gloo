@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useParams, useSearchParams, usePathname } from 'next/navigation'
 import { CHANNELS } from '@/lib/channels'
-import { getProjects, getUnreadCountsByChannel, getTotalUnreadForUser, initializeStore } from '@/lib/store'
+import { getProjects, getUnreadCountsByChannel, getTotalUnreadForUser, getPendingSubLogCount, initializeStore } from '@/lib/store'
 import { Project } from '@/types/models'
 
 interface SidebarProps {
@@ -31,6 +31,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
   const [projects, setProjects] = useState<Project[]>([])
   const [channelUnreads, setChannelUnreads] = useState<Record<string, number>>({})
   const [feedUnread, setFeedUnread] = useState(0)
+  const [pendingSubLogs, setPendingSubLogs] = useState(0)
 
   const currentProjectId = params?.id as string | undefined
   const currentChannel = searchParams?.get('channel') || undefined
@@ -59,8 +60,12 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
     if (session?.user) {
       const total = getTotalUnreadForUser(session.user.id, session.user.role, session.user.projectIds || [])
       setFeedUnread(total)
+      if (currentProjectId) {
+        const pending = getPendingSubLogCount(currentProjectId)
+        setPendingSubLogs(pending)
+      }
     }
-  }, [session?.user?.projectIds, session?.user])
+  }, [session?.user?.projectIds, session?.user, currentProjectId])
 
   // Load unread counts for current project
   useEffect(() => {
@@ -69,6 +74,13 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
       setChannelUnreads(counts)
     }
   }, [session?.user?.id, currentProjectId, currentChannel])
+
+  useEffect(() => {
+    if (currentProjectId) {
+      const pending = getPendingSubLogCount(currentProjectId)
+      setPendingSubLogs(pending)
+    }
+  }, [currentProjectId])
 
   const toggleCollapsed = () => {
     const next = !isCollapsed
@@ -244,6 +256,48 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                 )
               })}
             </div>
+            {/* Sub Log Links */}
+            {session?.user?.role === 'subcontractor' && (
+              <Link
+                href={`/projects/${currentProjectId}/submit-log`}
+                onClick={onClose}
+                className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                  pathname?.includes('/submit-log')
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-text-secondary hover:bg-[#2a2e36]'
+                }`}
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+                {!isCollapsed && <span>Submit Log</span>}
+              </Link>
+            )}
+            {(session?.user?.role === 'superintendent' || session?.user?.role === 'project_manager') && (
+              <Link
+                href={`/projects/${currentProjectId}/review`}
+                onClick={onClose}
+                className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                  pathname?.includes('/review')
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-text-secondary hover:bg-[#2a2e36]'
+                }`}
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                </svg>
+                {!isCollapsed && (
+                  <>
+                    <span>Review Logs</span>
+                    {pendingSubLogs > 0 && (
+                      <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                        {pendingSubLogs}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Link>
+            )}
           </>
         )}
 
@@ -300,7 +354,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                 {session?.user?.name || 'User'}
               </div>
               <div className="text-xs text-text-muted">
-                {session?.user?.role === 'superintendent' ? 'Superintendent' : 'Project Manager'}
+                {session?.user?.role === 'superintendent' ? 'Superintendent' : session?.user?.role === 'project_manager' ? 'PM' : session?.user?.role === 'foreman' ? 'Foreman' : session?.user?.role === 'subcontractor' ? 'Subcontractor' : session?.user?.role === 'owner' ? 'Owner' : session?.user?.role}
               </div>
             </div>
           )}
@@ -476,6 +530,44 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                     )
                   })}
                 </div>
+                {/* Sub Log Links */}
+                {session?.user?.role === 'subcontractor' && (
+                  <Link
+                    href={`/projects/${currentProjectId}/submit-log`}
+                    onClick={onClose}
+                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      pathname?.includes('/submit-log')
+                        ? 'bg-accent-soft text-accent'
+                        : 'text-text-secondary hover:bg-[#2a2e36]'
+                    }`}
+                  >
+                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                    <span>Submit Log</span>
+                  </Link>
+                )}
+                {(session?.user?.role === 'superintendent' || session?.user?.role === 'project_manager') && (
+                  <Link
+                    href={`/projects/${currentProjectId}/review`}
+                    onClick={onClose}
+                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      pathname?.includes('/review')
+                        ? 'bg-accent-soft text-accent'
+                        : 'text-text-secondary hover:bg-[#2a2e36]'
+                    }`}
+                  >
+                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                    </svg>
+                    <span>Review Logs</span>
+                    {pendingSubLogs > 0 && (
+                      <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-dark">
+                        {pendingSubLogs}
+                      </span>
+                    )}
+                  </Link>
+                )}
               </>
             )}
 
@@ -529,7 +621,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                   {session?.user?.name || 'User'}
                 </div>
                 <div className="text-xs text-text-muted">
-                  {session?.user?.role === 'superintendent' ? 'Superintendent' : 'Project Manager'}
+                  {session?.user?.role === 'superintendent' ? 'Superintendent' : session?.user?.role === 'project_manager' ? 'PM' : session?.user?.role === 'foreman' ? 'Foreman' : session?.user?.role === 'subcontractor' ? 'Subcontractor' : session?.user?.role === 'owner' ? 'Owner' : session?.user?.role}
                 </div>
               </div>
             </div>

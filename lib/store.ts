@@ -1,5 +1,5 @@
-import { Project, ScheduleItem, Message, ScheduleItemStatus, DailyLog, WeatherCondition, ParsedLogData } from '@/types/models';
-import { seedProjects, seedScheduleItems, seedMessages, seedDailyLogs } from './seedData';
+import { Project, ScheduleItem, Message, ScheduleItemStatus, DailyLog, WeatherCondition, ParsedLogData, SubLog, SubLogStatus } from '@/types/models';
+import { seedProjects, seedScheduleItems, seedMessages, seedDailyLogs, seedSubLogs } from './seedData';
 import { detectTags } from './detectTags';
 import { CHANNELS } from './channels';
 
@@ -10,7 +10,8 @@ const KEYS = {
   messages: 'constructionglue-messages',
   readTimestamps: 'constructionglue-read-timestamps',
   dailyLogs: 'constructionglue-daily-logs',
-  initialized: 'constructionglue-initialized-v4',
+  subLogs: 'constructionglue-sub-logs',
+  initialized: 'constructionglue-initialized-v5',
 };
 
 // Helper to check if we're in browser
@@ -26,6 +27,7 @@ export function initializeStore(): void {
     localStorage.setItem(KEYS.scheduleItems, JSON.stringify(seedScheduleItems));
     localStorage.setItem(KEYS.messages, JSON.stringify(seedMessages));
     localStorage.setItem(KEYS.dailyLogs, JSON.stringify(seedDailyLogs));
+    localStorage.setItem(KEYS.subLogs, JSON.stringify(seedSubLogs));
     localStorage.setItem(KEYS.readTimestamps, JSON.stringify({}));
     localStorage.setItem(KEYS.initialized, 'true');
   }
@@ -487,10 +489,85 @@ export function getTotalUnreadForUser(
   return threads.reduce((sum, t) => sum + t.unreadCount, 0)
 }
 
+// ============ SUB LOGS ============
+
+export function getSubLogsForProject(projectId: string): SubLog[] {
+  const logs = getFromStorage<SubLog[]>(KEYS.subLogs, [])
+  return logs
+    .filter(log => log.projectId === projectId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
+export function getSubLogsByDate(projectId: string, date: string): SubLog[] {
+  const logs = getFromStorage<SubLog[]>(KEYS.subLogs, [])
+  return logs.filter(log => log.projectId === projectId && log.date === date)
+}
+
+export function createSubLog(
+  projectId: string,
+  date: string,
+  submittedBy: string,
+  submitterName: string,
+  submitterRole: string,
+  rawTranscript: string,
+  language: 'en' | 'es',
+  translatedTranscript?: string
+): SubLog {
+  const logs = getFromStorage<SubLog[]>(KEYS.subLogs, [])
+  const now = new Date().toISOString()
+
+  const newLog: SubLog = {
+    id: `sublog-${Date.now()}`,
+    projectId,
+    date,
+    submittedBy,
+    submitterName,
+    submitterRole: submitterRole as SubLog['submitterRole'],
+    rawTranscript,
+    language,
+    translatedTranscript,
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  logs.push(newLog)
+  saveToStorage(KEYS.subLogs, logs)
+  return newLog
+}
+
+export function updateSubLogStatus(
+  id: string,
+  status: SubLogStatus,
+  reviewedBy: string,
+  reviewNote?: string
+): SubLog | undefined {
+  const logs = getFromStorage<SubLog[]>(KEYS.subLogs, [])
+  const index = logs.findIndex(log => log.id === id)
+  if (index === -1) return undefined
+
+  logs[index] = {
+    ...logs[index],
+    status,
+    reviewedBy,
+    reviewNote,
+    updatedAt: new Date().toISOString(),
+  }
+
+  saveToStorage(KEYS.subLogs, logs)
+  return logs[index]
+}
+
+export function getPendingSubLogCount(projectId: string): number {
+  const logs = getFromStorage<SubLog[]>(KEYS.subLogs, [])
+  return logs.filter(log => log.projectId === projectId && log.status === 'pending').length
+}
+
 // ============ RESET ============
 
 export function resetStore(): void {
   if (!isBrowser) return;
+  localStorage.removeItem(KEYS.subLogs);
   localStorage.removeItem(KEYS.initialized);
   initializeStore();
 }

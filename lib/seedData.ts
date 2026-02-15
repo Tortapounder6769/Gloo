@@ -1,4 +1,4 @@
-import { User, Project, ScheduleItem, Message, DailyLog, ParsedLogData } from '@/types/models';
+import { User, Project, ScheduleItem, Message, DailyLog, ParsedLogData, SubLog } from '@/types/models';
 
 // Users matching auth credentials
 export const seedUsers: User[] = [
@@ -444,5 +444,36 @@ export const seedDailyLogs: DailyLog[] = [
     },
     createdAt: '2026-02-04T17:00:00.000Z',
     updatedAt: '2026-02-04T17:15:00.000Z',
+  },
+];
+
+// Sample sub-logs
+export const seedSubLogs: SubLog[] = [
+  {
+    id: 'sublog-1',
+    projectId: 'project-1',
+    date: '2026-02-06',
+    submittedBy: 'user_sub',
+    submitterName: 'Alex Kim',
+    submitterRole: 'subcontractor',
+    rawTranscript: 'Finished pulling wire on the second floor today. All circuits for units 201 through 208 are roughed in. Panel schedule is updated. Had two guys from the union hall helping out, made good progress. Need to get the inspector back for sign-off before drywall can start.',
+    language: 'en',
+    status: 'pending',
+    createdAt: '2026-02-06T16:30:00.000Z',
+    updatedAt: '2026-02-06T16:30:00.000Z',
+  },
+  {
+    id: 'sublog-2',
+    projectId: 'project-1',
+    date: '2026-02-07',
+    submittedBy: 'user_sub',
+    submitterName: 'Alex Kim',
+    submitterRole: 'subcontractor',
+    rawTranscript: 'Hoy terminamos el cableado del tercer piso. Instalamos los circuitos para las unidades 301 a 304. Tuvimos un problema con el panel eléctrico principal, necesitamos un transformador más grande. Pedí el material, llega el viernes.',
+    language: 'es',
+    translatedTranscript: 'Today we finished the wiring on the third floor. We installed the circuits for units 301 to 304. We had a problem with the main electrical panel, we need a bigger transformer. I ordered the material, it arrives Friday.',
+    status: 'pending',
+    createdAt: '2026-02-07T16:45:00.000Z',
+    updatedAt: '2026-02-07T16:45:00.000Z',
   },
 ];
