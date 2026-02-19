@@ -12,8 +12,10 @@ import {
   upsertDailyLog,
   updateDailyLogParsedData,
   getScheduleItemsForProject,
+  getTaggedMessagesForDate,
   initializeStore,
 } from '@/lib/store'
+import { generateDailyLogPDF, DailyLogPDFData } from '@/lib/generateDailyLogPDF'
 import MicDock from '@/components/MicDock'
 import PromptPills from '@/components/PromptPills'
 
@@ -45,6 +47,7 @@ export default function DailyLogPage() {
   // AI parsing state
   const [parsedData, setParsedData] = useState<ParsedLogData | null>(null)
   const [parseStatus, setParseStatus] = useState<'idle' | 'parsing' | 'done' | 'error'>('idle')
+  const [isExporting, setIsExporting] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -212,6 +215,48 @@ export default function DailyLogPage() {
     })
   }
 
+  const roleLabels: Record<string, string> = {
+    superintendent: 'Superintendent',
+    project_manager: 'Project Manager',
+    foreman: 'Foreman',
+    subcontractor: 'Subcontractor',
+    owner: 'Owner',
+  }
+
+  const handleExportPDF = () => {
+    if (!project || !session?.user) return
+    setIsExporting(true)
+
+    const log = getDailyLogByDate(projectId, selectedDate)
+    const taggedMsgs = getTaggedMessagesForDate(projectId, selectedDate)
+
+    const pdfData: DailyLogPDFData = {
+      project: { name: project.name, address: project.address, contractNumber: project.contractNumber },
+      date: formatLogDate(selectedDate),
+      dateRaw: selectedDate,
+      preparedBy: { name: session.user.name, role: roleLabels[session.user.role] || session.user.role },
+      rawEntry: log?.rawEntry || rawEntry || '',
+      weather: (log?.weather || weather || undefined) as string | undefined,
+      weatherDetails: log?.parsedData?.weather?.details || parsedData?.weather?.details,
+      crewCount: log?.crewCount || (crewCount ? parseInt(crewCount) : undefined),
+      crew: log?.parsedData?.crew || parsedData?.crew || [],
+      workCompleted: log?.parsedData?.workCompleted || parsedData?.workCompleted || [],
+      deliveries: log?.parsedData?.deliveries || parsedData?.deliveries || [],
+      inspections: log?.parsedData?.inspections || parsedData?.inspections || [],
+      delays: log?.parsedData?.delays || parsedData?.delays || [],
+      visitors: log?.visitors || visitors || '',
+      taggedMessages: taggedMsgs.map(m => ({
+        tag: (m.tags || []).join(', ').toUpperCase(),
+        text: m.content,
+        sender: m.authorName,
+        time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      })),
+    }
+
+    generateDailyLogPDF(pdfData)
+    setTimeout(() => setIsExporting(false), 1000)
+  }
+
   const truncate = (text: string, maxLen = 100) => {
     if (text.length <= maxLen) return text
     return text.substring(0, maxLen).trim() + '...'
@@ -294,7 +339,29 @@ export default function DailyLogPage() {
             />
           </div>
           <span className="text-sm text-text-secondary">{formatLogDate(selectedDate)}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleExportPDF}
+              disabled={isExporting || !rawEntry?.trim()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export PDF
+                </>
+              )}
+            </button>
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${

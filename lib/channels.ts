@@ -16,7 +16,7 @@ export const CHANNELS: ChannelConfig[] = [
   { id: 'roofing', name: 'roofing', description: 'Roofing & waterproofing', tagIds: ['roofing'], type: 'tag-filter' },
   { id: 'safety', name: 'safety', description: 'Safety, OSHA & fall protection', tagIds: ['safety'], type: 'tag-filter' },
   { id: 'rfis-submittals', name: 'rfis-submittals', description: 'RFIs, submittals & inspections', tagIds: ['rfi', 'inspection'], type: 'tag-filter' },
-  { id: 'schedule', name: 'schedule', description: 'Schedule, timeline & milestones', tagIds: ['schedule'], type: 'schedule-view' },
+  // { id: 'schedule', name: 'schedule', description: 'Schedule, timeline & milestones', tagIds: ['schedule'], type: 'schedule-view' },
   { id: 'daily-log', name: 'daily-log', description: 'Daily job site logs', tagIds: [], type: 'navigation' },
 ]
 

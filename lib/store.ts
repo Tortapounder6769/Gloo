@@ -401,6 +401,18 @@ export function getUnreadCountsByChannel(userId: string, projectId: string): Rec
   return counts
 }
 
+// ============ TAGGED MESSAGES BY DATE ============
+
+export function getTaggedMessagesForDate(projectId: string, date: string): Message[] {
+  const messages = getFromStorage<Message[]>(KEYS.messages, [])
+  return messages.filter(msg => {
+    if (msg.projectId !== projectId) return false
+    if (!msg.tags || msg.tags.length === 0) return false
+    const msgDate = msg.createdAt.split('T')[0]
+    return msgDate === date
+  })
+}
+
 // ============ THREAD INFO FOR FEED ============
 
 export interface ThreadInfo {
