@@ -24,6 +24,10 @@ import ChannelView from '@/components/ChannelView'
 import ThreadView from '@/components/ThreadView'
 import ImageLightbox from '@/components/ImageLightbox'
 import { compressImage } from '@/lib/imageUtils'
+import { SlashCommand, SLASH_COMMANDS } from '@/lib/slashCommands'
+import SlashCommandMenu from '@/components/SlashCommandMenu'
+import MentionMenu from '@/components/MentionMenu'
+import { getProjectUsers, ProjectUser } from '@/lib/projectUsers'
 
 // Style maps
 const projectStatusStyles: Record<string, string> = {
@@ -127,6 +131,15 @@ export default function ProjectChannelPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
 
+  // Slash command state
+  const [activeTag, setActiveTag] = useState<SlashCommand | null>(null)
+  const [showSlashMenu, setShowSlashMenu] = useState(false)
+
+  // Mention state
+  const [showMentionMenu, setShowMentionMenu] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionedUsers, setMentionedUsers] = useState<ProjectUser[]>([])
+
   // Schedule add-item state
   const [showAddForm, setShowAddForm] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -137,7 +150,35 @@ export default function ProjectChannelPage() {
   const today = new Date().toISOString().split('T')[0]
 
   const channelConfig = useMemo(() => getChannelById(channelId), [channelId])
+  const projectUsers = useMemo(() => getProjectUsers(projectId), [projectId])
   const composeTags = detectTags(newMessage)
+
+  const handleSlashSelect = (cmd: SlashCommand) => {
+    setActiveTag(cmd)
+    setNewMessage('')
+    setShowSlashMenu(false)
+    textareaRef.current?.focus()
+  }
+
+  const handleSlashClose = () => {
+    setShowSlashMenu(false)
+  }
+
+  const handleMentionSelect = (user: ProjectUser) => {
+    const beforeAt = newMessage.lastIndexOf('@')
+    const before = newMessage.slice(0, beforeAt)
+    const after = newMessage.slice(beforeAt + 1 + mentionQuery.length)
+    setNewMessage(before + '@' + user.name + ' ' + after)
+    setMentionedUsers(prev => prev.some(u => u.id === user.id) ? prev : [...prev, user])
+    setShowMentionMenu(false)
+    setMentionQuery('')
+    textareaRef.current?.focus()
+  }
+
+  const handleMentionClose = () => {
+    setShowMentionMenu(false)
+    setMentionQuery('')
+  }
 
   // Load project data
   const loadData = useCallback(() => {
@@ -228,11 +269,16 @@ export default function ProjectChannelPage() {
       session.user.name,
       session.user.role,
       newMessage.trim(),
-      stagedImage || undefined
+      stagedImage || undefined,
+      activeTag ? activeTag.tagIds : undefined,
+      mentionedUsers.length > 0 ? mentionedUsers.map(u => u.id) : undefined
     )
 
     setNewMessage('')
     setStagedImage(null)
+    setActiveTag(null)
+    setShowSlashMenu(false)
+    setMentionedUsers([])
     markThreadAsRead(session.user.id, projectId, null)
     markChannelAsRead(session.user.id, projectId, 'general')
 
@@ -248,6 +294,12 @@ export default function ProjectChannelPage() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionMenu && ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'Escape'].includes(e.key)) {
+      return // let MentionMenu handle it
+    }
+    if (showSlashMenu && ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'Escape'].includes(e.key)) {
+      return // let SlashCommandMenu's document listener handle it
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage(e as unknown as React.FormEvent)
@@ -412,7 +464,13 @@ export default function ProjectChannelPage() {
                       <div key={msg.id} className="flex gap-3 pl-11">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm text-text-secondary">{msg.content}</p>
+                            <p className="text-sm text-text-secondary">
+                              {msg.content.split(/(@\w[\w\s]*?\w(?=\s|$)|@\w+)/g).map((part, i) =>
+                                part.startsWith('@') ? (
+                                  <span key={i} className="font-medium text-accent">{part}</span>
+                                ) : part
+                              )}
+                            </p>
                             <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                           </div>
                           {msg.image && (
@@ -420,11 +478,22 @@ export default function ProjectChannelPage() {
                               <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                             </button>
                           )}
-                          {msgTags.length > 0 && (
-                            <span className="text-xs text-slate-500">
-                              {msgTags.map(t => t.label).join(' · ')}
-                            </span>
-                          )}
+                          {(() => {
+                            const allTags = [
+                              ...msgTags.map(t => ({ id: t.id, label: t.label, color: t.color, bgColor: t.bgColor })),
+                              ...(msg.tags || []).filter(id => !msgTags.some(t => t.id === id)).map(id => {
+                                const cmd = SLASH_COMMANDS.find(c => c.tagIds.includes(id))
+                                return cmd ? { id, label: cmd.label, color: cmd.color.split(' ')[1], bgColor: cmd.color.split(' ')[0] } : null
+                              }).filter(Boolean) as { id: string; label: string; color: string; bgColor: string }[]
+                            ]
+                            return allTags.length > 0 ? (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {allTags.map(tag => (
+                                  <span key={tag.id} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>{tag.label}</span>
+                                ))}
+                              </div>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                     )
@@ -443,17 +512,34 @@ export default function ProjectChannelPage() {
                           </span>
                           <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                         </div>
-                        <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                        <p className="mt-1 text-sm text-text-secondary">
+                          {msg.content.split(/(@\w[\w\s]*?\w(?=\s|$)|@\w+)/g).map((part, i) =>
+                            part.startsWith('@') ? (
+                              <span key={i} className="font-medium text-accent">{part}</span>
+                            ) : part
+                          )}
+                        </p>
                         {msg.image && (
                           <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
                             <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                           </button>
                         )}
-                        {msgTags.length > 0 && (
-                          <span className="text-xs text-slate-500">
-                            {msgTags.map(t => t.label).join(' · ')}
-                          </span>
-                        )}
+                        {(() => {
+                          const allTags = [
+                            ...msgTags.map(t => ({ id: t.id, label: t.label, color: t.color, bgColor: t.bgColor })),
+                            ...(msg.tags || []).filter(id => !msgTags.some(t => t.id === id)).map(id => {
+                              const cmd = SLASH_COMMANDS.find(c => c.tagIds.includes(id))
+                              return cmd ? { id, label: cmd.label, color: cmd.color.split(' ')[1], bgColor: cmd.color.split(' ')[0] } : null
+                            }).filter(Boolean) as { id: string; label: string; color: string; bgColor: string }[]
+                          ]
+                          return allTags.length > 0 ? (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {allTags.map(tag => (
+                                <span key={tag.id} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>{tag.label}</span>
+                              ))}
+                            </div>
+                          ) : null
+                        })()}
                       </div>
                     </div>
                   )
@@ -471,59 +557,119 @@ export default function ProjectChannelPage() {
               onChange={handleFileSelect}
               className="hidden"
             />
-            {composeTags.length > 0 && (
-              <span className="mb-2 text-xs text-slate-500">
-                {composeTags.map(t => t.label).join(' · ')}
-              </span>
-            )}
-            {stagedImage && (
-              <div className="mb-2 flex items-start gap-2">
-                <div className="relative">
-                  <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setStagedImage(null)}
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
-                  >
-                    ×
-                  </button>
+            <div className="relative">
+              {showSlashMenu && (
+                <SlashCommandMenu
+                  query={newMessage}
+                  onSelect={handleSlashSelect}
+                  onClose={handleSlashClose}
+                  onPhoto={() => fileInputRef.current?.click()}
+                />
+              )}
+              {showMentionMenu && !showSlashMenu && (
+                <MentionMenu
+                  query={mentionQuery}
+                  users={projectUsers}
+                  onSelect={handleMentionSelect}
+                  onClose={handleMentionClose}
+                />
+              )}
+              {mentionedUsers.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {mentionedUsers.map(u => (
+                    <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent animate-[scaleIn_150ms_ease-out]">
+                      @{u.name}
+                      <button type="button" onClick={() => setMentionedUsers(prev => prev.filter(p => p.id !== u.id))} className="ml-0.5 hover:opacity-70">×</button>
+                    </span>
+                  ))}
                 </div>
-              </div>
-            )}
-            <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="shrink-0 rounded-lg p-2 text-text-muted hover:text-text-secondary hover:bg-card transition-colors"
-                title="Attach image"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                </svg>
-              </button>
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onInput={handleTextareaInput}
-                onKeyDown={handleKeyDown}
-                placeholder={session?.user ? `Message as ${session.user.name}...` : 'Type a message...'}
-                className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              />
-              <button
-                type="submit"
-                disabled={(!newMessage.trim() && !stagedImage) || isSending}
-                className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
-                  (!newMessage.trim() && !stagedImage) || isSending
-                    ? 'cursor-not-allowed bg-card text-text-muted'
-                    : 'bg-accent text-dark hover:bg-amber-500'
-                }`}
-              >
-                {isSending ? 'Sent' : 'Send'}
-              </button>
-            </form>
+              )}
+              {activeTag && (
+                <div className="mb-2 flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium animate-[scaleIn_150ms_ease-out] ${activeTag.color}`}>
+                    {activeTag.label}
+                    <button type="button" onClick={() => setActiveTag(null)} className="ml-0.5 hover:opacity-70">×</button>
+                  </span>
+                </div>
+              )}
+              {composeTags.length > 0 && (
+                <span className="mb-2 text-xs text-slate-500">
+                  {composeTags.map(t => t.label).join(' · ')}
+                </span>
+              )}
+              {stagedImage && (
+                <div className="mb-2 flex items-start gap-2">
+                  <div className="relative">
+                    <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setStagedImage(null)}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+              <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="shrink-0 rounded-lg p-2 text-text-muted hover:text-text-secondary hover:bg-card transition-colors"
+                  title="Attach image"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                  </svg>
+                </button>
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={newMessage}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setNewMessage(val)
+                    if (val.startsWith('/')) {
+                      setShowSlashMenu(true)
+                    } else if (!val.startsWith('/')) {
+                      setShowSlashMenu(false)
+                    }
+                    // Detect @mention
+                    const atIndex = val.lastIndexOf('@')
+                    if (atIndex >= 0 && !val.startsWith('/')) {
+                      const afterAt = val.slice(atIndex + 1)
+                      const charBefore = atIndex > 0 ? val[atIndex - 1] : ' '
+                      if (charBefore === ' ' || atIndex === 0) {
+                        if (!afterAt.includes(' ')) {
+                          setMentionQuery(afterAt)
+                          setShowMentionMenu(true)
+                        } else {
+                          setShowMentionMenu(false)
+                        }
+                      }
+                    } else if (atIndex < 0) {
+                      setShowMentionMenu(false)
+                    }
+                  }}
+                  onInput={handleTextareaInput}
+                  onKeyDown={handleKeyDown}
+                  placeholder={activeTag ? activeTag.placeholder : (session?.user ? `Message as ${session.user.name}...` : 'Type a message...')}
+                  className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+                <button
+                  type="submit"
+                  disabled={(!newMessage.trim() && !stagedImage) || isSending}
+                  className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
+                    (!newMessage.trim() && !stagedImage) || isSending
+                      ? 'cursor-not-allowed bg-card text-text-muted'
+                      : 'bg-accent text-dark hover:bg-amber-500'
+                  }`}
+                >
+                  {isSending ? 'Sent' : 'Send'}
+                </button>
+              </form>
+            </div>
             {newMessage.trim() && (
               <p className="mt-1.5 text-xs text-text-muted">Press Enter to send, Shift+Enter for new line</p>
             )}

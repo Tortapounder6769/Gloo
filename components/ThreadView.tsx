@@ -10,10 +10,14 @@ import {
   updateScheduleItem,
   deleteScheduleItem,
 } from '@/lib/store'
-import { detectTags, DetectedTag } from '@/lib/detectTags'
+import { detectTags } from '@/lib/detectTags'
 import { formatTimestamp } from '@/lib/formatTimestamp'
 import { compressImage } from '@/lib/imageUtils'
 import ImageLightbox from '@/components/ImageLightbox'
+import { SlashCommand, SLASH_COMMANDS } from '@/lib/slashCommands'
+import SlashCommandMenu from '@/components/SlashCommandMenu'
+import MentionMenu from '@/components/MentionMenu'
+import { getProjectUsers, ProjectUser } from '@/lib/projectUsers'
 
 interface ThreadViewProps {
   projectId: string
@@ -90,15 +94,6 @@ const userNames: Record<string, string> = {
 
 const allStatuses: ScheduleItemStatus[] = ['not_started', 'in_progress', 'completed', 'at_risk', 'blocked']
 
-function TagPills({ tags }: { tags: DetectedTag[] }) {
-  if (tags.length === 0) return null
-  return (
-    <span className="mt-1 text-xs text-slate-500">
-      {tags.map(t => t.label).join(' \u00B7 ')}
-    </span>
-  )
-}
-
 export default function ThreadView({
   projectId,
   scheduleItem,
@@ -121,9 +116,17 @@ export default function ThreadView({
   const [editDueDate, setEditDueDate] = useState(item.dueDate)
   const [editAssignedTo, setEditAssignedTo] = useState<string[]>(item.assignedTo || [])
 
+  const [activeTag, setActiveTag] = useState<SlashCommand | null>(null)
+  const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [stagedImage, setStagedImage] = useState<string | null>(null)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Mention state
+  const [showMentionMenu, setShowMentionMenu] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionedUsers, setMentionedUsers] = useState<ProjectUser[]>([])
+
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -133,6 +136,34 @@ export default function ThreadView({
 
   // Smart compose tag detection
   const composeTags = useMemo(() => detectTags(newMessage), [newMessage])
+  const projectUsers = useMemo(() => getProjectUsers(projectId), [projectId])
+
+  const handleSlashSelect = (cmd: SlashCommand) => {
+    setActiveTag(cmd)
+    setNewMessage('')
+    setShowSlashMenu(false)
+    textareaRef.current?.focus()
+  }
+
+  const handleSlashClose = () => {
+    setShowSlashMenu(false)
+  }
+
+  const handleMentionSelect = (user: ProjectUser) => {
+    const beforeAt = newMessage.lastIndexOf('@')
+    const before = newMessage.slice(0, beforeAt)
+    const after = newMessage.slice(beforeAt + 1 + mentionQuery.length)
+    setNewMessage(before + '@' + user.name + ' ' + after)
+    setMentionedUsers(prev => prev.some(u => u.id === user.id) ? prev : [...prev, user])
+    setShowMentionMenu(false)
+    setMentionQuery('')
+    textareaRef.current?.focus()
+  }
+
+  const handleMentionClose = () => {
+    setShowMentionMenu(false)
+    setMentionQuery('')
+  }
 
   const scrollToBottom = useCallback((instant = false) => {
     const el = scrollContainerRef.current
@@ -174,11 +205,16 @@ export default function ThreadView({
       session.user.name,
       session.user.role,
       newMessage.trim(),
-      stagedImage || undefined
+      stagedImage || undefined,
+      activeTag ? activeTag.tagIds : undefined,
+      mentionedUsers.length > 0 ? mentionedUsers.map(u => u.id) : undefined
     )
 
     setNewMessage('')
     setStagedImage(null)
+    setActiveTag(null)
+    setShowSlashMenu(false)
+    setMentionedUsers([])
     markThreadAsRead(session.user.id, projectId, item.id)
 
     if (textareaRef.current) {
@@ -193,6 +229,12 @@ export default function ThreadView({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionMenu && ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'Escape'].includes(e.key)) {
+      return // let MentionMenu handle it
+    }
+    if (showSlashMenu && ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'Escape'].includes(e.key)) {
+      return // let SlashCommandMenu's document listener handle it
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage(e as unknown as React.FormEvent)
@@ -474,7 +516,13 @@ export default function ThreadView({
                   <div key={msg.id} className="animate-fadeIn flex gap-3 pl-11">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-text-secondary">{msg.content}</p>
+                        <p className="text-sm text-text-secondary">
+                          {msg.content.split(/(@\w[\w\s]*?\w(?=\s|$)|@\w+)/g).map((part, i) =>
+                            part.startsWith('@') ? (
+                              <span key={i} className="font-medium text-accent">{part}</span>
+                            ) : part
+                          )}
+                        </p>
                         <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                       </div>
                       {msg.image && (
@@ -482,7 +530,22 @@ export default function ThreadView({
                           <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                         </button>
                       )}
-                      <TagPills tags={msgTags} />
+                      {(() => {
+                        const allTags = [
+                          ...msgTags.map(t => ({ id: t.id, label: t.label, color: t.color, bgColor: t.bgColor })),
+                          ...(msg.tags || []).filter(id => !msgTags.some(t => t.id === id)).map(id => {
+                            const cmd = SLASH_COMMANDS.find(c => c.tagIds.includes(id))
+                            return cmd ? { id, label: cmd.label, color: cmd.color.split(' ')[1], bgColor: cmd.color.split(' ')[0] } : null
+                          }).filter(Boolean) as { id: string; label: string; color: string; bgColor: string }[]
+                        ]
+                        return allTags.length > 0 ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {allTags.map(tag => (
+                              <span key={tag.id} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>{tag.label}</span>
+                            ))}
+                          </div>
+                        ) : null
+                      })()}
                     </div>
                   </div>
                 )
@@ -501,13 +564,34 @@ export default function ThreadView({
                       </span>
                       <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {msg.content.split(/(@\w[\w\s]*?\w(?=\s|$)|@\w+)/g).map((part, i) =>
+                        part.startsWith('@') ? (
+                          <span key={i} className="font-medium text-accent">{part}</span>
+                        ) : part
+                      )}
+                    </p>
                     {msg.image && (
                       <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
                         <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                       </button>
                     )}
-                    <TagPills tags={msgTags} />
+                    {(() => {
+                      const allTags = [
+                        ...msgTags.map(t => ({ id: t.id, label: t.label, color: t.color, bgColor: t.bgColor })),
+                        ...(msg.tags || []).filter(id => !msgTags.some(t => t.id === id)).map(id => {
+                          const cmd = SLASH_COMMANDS.find(c => c.tagIds.includes(id))
+                          return cmd ? { id, label: cmd.label, color: cmd.color.split(' ')[1], bgColor: cmd.color.split(' ')[0] } : null
+                        }).filter(Boolean) as { id: string; label: string; color: string; bgColor: string }[]
+                      ]
+                      return allTags.length > 0 ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {allTags.map(tag => (
+                            <span key={tag.id} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tag.bgColor} ${tag.color}`}>{tag.label}</span>
+                          ))}
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 </div>
               )
@@ -525,78 +609,138 @@ export default function ThreadView({
           onChange={handleFileSelect}
           className="hidden"
         />
-        {/* Smart tags bar */}
-        {newMessage.trim() === '' ? (
-          <p className="mb-2 text-xs text-text-muted">Smart tags will appear as you type...</p>
-        ) : composeTags.length > 0 ? (
-          <div className="mb-2 text-xs text-slate-500">
-            {composeTags.map(t => t.label).join(' \u00B7 ')}
-          </div>
-        ) : null}
+        <div className="relative">
+          {showSlashMenu && (
+            <SlashCommandMenu
+              query={newMessage}
+              onSelect={handleSlashSelect}
+              onClose={handleSlashClose}
+              onPhoto={() => fileInputRef.current?.click()}
+            />
+          )}
+          {showMentionMenu && !showSlashMenu && (
+            <MentionMenu
+              query={mentionQuery}
+              users={projectUsers}
+              onSelect={handleMentionSelect}
+              onClose={handleMentionClose}
+            />
+          )}
+          {mentionedUsers.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {mentionedUsers.map(u => (
+                <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent animate-[scaleIn_150ms_ease-out]">
+                  @{u.name}
+                  <button type="button" onClick={() => setMentionedUsers(prev => prev.filter(p => p.id !== u.id))} className="ml-0.5 hover:opacity-70">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          {activeTag && (
+            <div className="mb-2 flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium animate-[scaleIn_150ms_ease-out] ${activeTag.color}`}>
+                {activeTag.label}
+                <button type="button" onClick={() => setActiveTag(null)} className="ml-0.5 hover:opacity-70">×</button>
+              </span>
+            </div>
+          )}
+          {/* Smart tags bar */}
+          {newMessage.trim() === '' ? (
+            <p className="mb-2 text-xs text-text-muted">Smart tags will appear as you type...</p>
+          ) : composeTags.length > 0 ? (
+            <div className="mb-2 text-xs text-slate-500">
+              {composeTags.map(t => t.label).join(' \u00B7 ')}
+            </div>
+          ) : null}
 
-        {stagedImage && (
-          <div className="mb-2 flex items-start gap-2">
-            <div className="relative">
-              <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
+          {stagedImage && (
+            <div className="mb-2 flex items-start gap-2">
+              <div className="relative">
+                <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setStagedImage(null)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSendMessage}>
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={newMessage}
+              onChange={(e) => {
+                const val = e.target.value
+                setNewMessage(val)
+                if (val.startsWith('/')) {
+                  setShowSlashMenu(true)
+                } else if (!val.startsWith('/')) {
+                  setShowSlashMenu(false)
+                }
+                // Detect @mention
+                const atIndex = val.lastIndexOf('@')
+                if (atIndex >= 0 && !val.startsWith('/')) {
+                  const afterAt = val.slice(atIndex + 1)
+                  const charBefore = atIndex > 0 ? val[atIndex - 1] : ' '
+                  if (charBefore === ' ' || atIndex === 0) {
+                    if (!afterAt.includes(' ')) {
+                      setMentionQuery(afterAt)
+                      setShowMentionMenu(true)
+                    } else {
+                      setShowMentionMenu(false)
+                    }
+                  }
+                } else if (atIndex < 0) {
+                  setShowMentionMenu(false)
+                }
+              }}
+              onInput={handleTextareaInput}
+              onKeyDown={handleKeyDown}
+              placeholder={activeTag ? activeTag.placeholder : (session?.user ? `Comment as ${session.user.name}...` : 'Add a comment...')}
+              className="max-h-24 w-full resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+
+            {/* Toolbar row */}
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
+                <button type="button" className="rounded p-1.5 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary">
+                  @
+                </button>
+              </div>
               <button
-                type="button"
-                onClick={() => setStagedImage(null)}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
+                type="submit"
+                disabled={(!newMessage.trim() && !stagedImage) || isSending}
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                  (newMessage.trim() || stagedImage) && !isSending
+                    ? 'bg-accent text-dark hover:bg-amber-500'
+                    : 'cursor-not-allowed bg-card text-text-muted'
+                }`}
               >
-                ×
+                {isSending ? 'Sent' : newMessage.trim() ? 'Send \u2191' : 'Send'}
               </button>
             </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSendMessage}>
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onInput={handleTextareaInput}
-            onKeyDown={handleKeyDown}
-            placeholder={session?.user ? `Comment as ${session.user.name}...` : 'Add a comment...'}
-            className="max-h-24 w-full resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          />
-
-          {/* Toolbar row */}
-          <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                </svg>
-              </button>
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              </button>
-              <button type="button" className="rounded p-1.5 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary">
-                @
-              </button>
-            </div>
-            <button
-              type="submit"
-              disabled={(!newMessage.trim() && !stagedImage) || isSending}
-              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-                (newMessage.trim() || stagedImage) && !isSending
-                  ? 'bg-accent text-dark hover:bg-amber-500'
-                  : 'cursor-not-allowed bg-card text-text-muted'
-              }`}
-            >
-              {isSending ? 'Sent' : newMessage.trim() ? 'Send \u2191' : 'Send'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
 
         {/* Hint text */}
         <p className="mt-2 text-xs text-text-muted">Glue auto-detects trades, delays, inspections, and work items from your message</p>

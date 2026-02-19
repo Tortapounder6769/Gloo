@@ -178,7 +178,9 @@ export function createMessage(
   authorName: string,
   authorRole: string,
   content: string,
-  image?: string
+  image?: string,
+  tags?: string[],
+  mentions?: string[]
 ): Message {
   const messages = getFromStorage<Message[]>(KEYS.messages, []);
 
@@ -191,6 +193,8 @@ export function createMessage(
     authorRole: authorRole as Message['authorRole'],
     content,
     ...(image ? { image } : {}),
+    ...(tags && tags.length > 0 ? { tags } : {}),
+    ...(mentions && mentions.length > 0 ? { mentions } : {}),
     createdAt: new Date().toISOString(),
   };
 
@@ -377,8 +381,10 @@ export function getUnreadCountsByChannel(userId: string, projectId: string): Rec
       channelMessages = allMessages.filter(msg => msg.scheduleItemId === null)
     } else if (channel.type === 'tag-filter' || channel.type === 'schedule-view') {
       channelMessages = allMessages.filter(msg => {
-        const tags = detectTags(msg.content)
-        return tags.some((tag: { id: string }) => channel.tagIds.includes(tag.id))
+        const autoTags = detectTags(msg.content)
+        const hasAutoTag = autoTags.some((tag: { id: string }) => channel.tagIds.includes(tag.id))
+        const hasExplicitTag = (msg.tags || []).some(id => channel.tagIds.includes(id))
+        return hasAutoTag || hasExplicitTag
       })
     } else {
       // navigation channels like daily-log don't have unread counts

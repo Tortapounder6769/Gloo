@@ -72,6 +72,8 @@ export interface Message {
   authorRole: Role;
   content: string;
   image?: string;  // base64 data URI
+  tags?: string[];
+  mentions?: string[];  // user IDs of mentioned people
   createdAt: string;
 }
 
