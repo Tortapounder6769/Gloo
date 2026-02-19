@@ -130,3 +130,17 @@ body {
 .animate-typing-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Mobile viewport height (accounts for Safari URL bar) */
+html { height: 100dvh; }
+
+/* Safe area insets for notched iPhones */
+body { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Prevent iOS zoom on input focus */
+@media (max-width: 768px) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* Smooth scroll on iOS */
+.scroll-touch { -webkit-overflow-scrolling: touch; }

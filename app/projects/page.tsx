@@ -77,13 +77,13 @@ export default function ProjectsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-border bg-main px-6 py-4">
+      <div className="border-b border-border bg-main px-3 sm:px-6 py-3 sm:py-4">
         <h1 className="text-xl font-semibold text-text-primary">Projects</h1>
         <p className="mt-1 text-sm text-text-muted">Select a project to view channels and messages</p>
       </div>
 
       {/* Project list */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
         {projects.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card">
@@ -103,7 +103,7 @@ export default function ProjectsPage() {
                 <button
                   key={project.id}
                   onClick={() => handleSelectProject(project.id)}
-                  className="w-full rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-accent/30"
+                  className="w-full rounded-xl border border-border bg-card p-4 sm:p-5 text-left transition-all hover:border-accent/30"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">

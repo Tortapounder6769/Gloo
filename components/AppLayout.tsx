@@ -47,16 +47,16 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-dark">
+    <div className="flex h-dvh overflow-hidden bg-dark">
       <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-1 flex-col overflow-hidden bg-main">
         {/* Top Bar */}
-        <div className="flex h-14 items-center justify-between border-b border-border bg-main px-6">
+        <div className="flex h-12 sm:h-14 items-center justify-between border-b border-border bg-main px-3 sm:px-6">
           {/* Left side */}
           <div className="flex items-center">
             {/* Mobile hamburger */}
             <button
-              className="mr-3 md:hidden"
+              className="mr-3 flex h-11 w-11 items-center justify-center md:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
             >
@@ -70,7 +70,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Right side */}
-          <div className="flex items-center">
+          <div className="hidden sm:flex items-center">
             {/* Stacked avatars */}
             <div className="flex -space-x-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-main bg-accent text-xs font-bold text-white">

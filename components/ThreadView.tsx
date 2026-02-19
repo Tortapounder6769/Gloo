@@ -322,7 +322,7 @@ export default function ThreadView({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-border bg-main px-6 py-4">
+      <div className="border-b border-border bg-main px-3 sm:px-6 py-3 sm:py-4">
         <button
           onClick={onBack}
           className="mb-3 inline-flex items-center gap-1 text-sm text-cg-blue hover:text-blue-300"
@@ -499,7 +499,7 @@ export default function ThreadView({
       {/* Messages */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-main p-6"
+        className="flex-1 overflow-y-auto bg-main p-3 sm:p-6"
         onScroll={() => { shouldAutoScrollRef.current = isNearBottom() }}
       >
         {messages.length === 0 ? (
@@ -527,7 +527,7 @@ export default function ThreadView({
                       </div>
                       {msg.image && (
                         <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                          <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                          <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                         </button>
                       )}
                       {(() => {
@@ -573,7 +573,7 @@ export default function ThreadView({
                     </p>
                     {msg.image && (
                       <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                        <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                        <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                       </button>
                     )}
                     {(() => {
@@ -601,7 +601,7 @@ export default function ThreadView({
       </div>
 
       {/* Smart Compose Box */}
-      <div className="border-t border-border bg-main p-4" onPaste={handlePaste}>
+      <div className="border-t border-border bg-main p-3 sm:p-4" onPaste={handlePaste}>
         <input
           ref={fileInputRef}
           type="file"
@@ -701,7 +701,7 @@ export default function ThreadView({
               onInput={handleTextareaInput}
               onKeyDown={handleKeyDown}
               placeholder={activeTag ? activeTag.placeholder : (session?.user ? `Comment as ${session.user.name}...` : 'Add a comment...')}
-              className="max-h-24 w-full resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              className="max-h-24 w-full resize-none overflow-y-auto rounded-lg border border-border bg-input px-3 sm:px-4 py-2 text-[16px] sm:text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
 
             {/* Toolbar row */}

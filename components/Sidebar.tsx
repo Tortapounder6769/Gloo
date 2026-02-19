@@ -411,7 +411,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
         }`}
       >
         {/* Override collapsed state on mobile - always show expanded */}
-        <div className="flex h-full w-[260px] flex-col bg-sidebar">
+        <div className="flex h-full w-[260px] flex-col bg-sidebar pb-[env(safe-area-inset-bottom)]">
           {/* Re-render expanded sidebar for mobile */}
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-4">
@@ -426,7 +426,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
             </div>
             <button
               onClick={onClose}
-              className="flex h-6 w-6 items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-[#2a2e36] transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-[#2a2e36] transition-colors"
               aria-label="Close sidebar"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -474,7 +474,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                     key={project.id}
                     href={`/projects/${project.id}?channel=general`}
                     onClick={onClose}
-                    className={`flex items-center gap-2 px-4 py-1.5 text-sm transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                       isActive
                         ? 'bg-accent-soft text-accent'
                         : 'text-text-secondary hover:bg-[#2a2e36] hover:text-text-primary'
@@ -513,7 +513,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                         key={channel.id}
                         href={href}
                         onClick={onClose}
-                        className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                        className={`mx-2 flex items-center gap-2 rounded-md px-2 py-2.5 text-sm transition-colors ${
                           isActiveChannel
                             ? 'bg-accent-soft text-accent'
                             : 'text-text-secondary hover:bg-[#2a2e36]'
@@ -535,7 +535,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                   <Link
                     href={`/projects/${currentProjectId}/submit-log`}
                     onClick={onClose}
-                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-2.5 text-sm transition-colors ${
                       pathname?.includes('/submit-log')
                         ? 'bg-accent-soft text-accent'
                         : 'text-text-secondary hover:bg-[#2a2e36]'
@@ -551,7 +551,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                   <Link
                     href={`/projects/${currentProjectId}/review`}
                     onClick={onClose}
-                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                    className={`mx-2 flex items-center gap-2 rounded-md px-2 py-2.5 text-sm transition-colors ${
                       pathname?.includes('/review')
                         ? 'bg-accent-soft text-accent'
                         : 'text-text-secondary hover:bg-[#2a2e36]'
@@ -583,7 +583,7 @@ export default function Sidebar({ sidebarOpen = false, onClose }: SidebarProps) 
                   key={dm.name}
                   href="/projects"
                   onClick={onClose}
-                  className="flex items-center gap-2 px-4 py-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary transition-colors hover:text-text-primary hover:bg-[#2a2e36]"
                 >
                   <div className="relative shrink-0">
                     <div

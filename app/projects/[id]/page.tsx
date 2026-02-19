@@ -447,7 +447,7 @@ export default function ProjectChannelPage() {
           {/* Messages */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto p-6"
+            className="flex-1 overflow-y-auto p-3 sm:p-6"
             onScroll={() => { shouldAutoScrollRef.current = isNearBottom() }}
           >
             {generalMessages.length === 0 ? (
@@ -475,7 +475,7 @@ export default function ProjectChannelPage() {
                           </div>
                           {msg.image && (
                             <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                              <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                              <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                             </button>
                           )}
                           {(() => {
@@ -521,7 +521,7 @@ export default function ProjectChannelPage() {
                         </p>
                         {msg.image && (
                           <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                            <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                            <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                           </button>
                         )}
                         {(() => {
@@ -549,7 +549,7 @@ export default function ProjectChannelPage() {
           </div>
 
           {/* Compose box */}
-          <div className="border-t border-border bg-main p-4" onPaste={handlePaste}>
+          <div className="border-t border-border bg-main p-3 sm:p-4" onPaste={handlePaste}>
             <input
               ref={fileInputRef}
               type="file"
@@ -655,7 +655,7 @@ export default function ProjectChannelPage() {
                   onInput={handleTextareaInput}
                   onKeyDown={handleKeyDown}
                   placeholder={activeTag ? activeTag.placeholder : (session?.user ? `Message as ${session.user.name}...` : 'Type a message...')}
-                  className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-3 sm:px-4 py-2 text-[16px] sm:text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
                 <button
                   type="submit"
@@ -700,7 +700,7 @@ export default function ProjectChannelPage() {
     // Schedule view channel
     if (channelConfig.type === 'schedule-view') {
       return (
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {/* Add Item Button & Filter */}
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -866,7 +866,7 @@ export default function ProjectChannelPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Project header */}
-      <div className="border-b border-border bg-main px-6 py-3">
+      <div className="border-b border-border bg-main px-3 sm:px-6 py-2 sm:py-3">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/projects')}
@@ -878,7 +878,7 @@ export default function ProjectChannelPage() {
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-lg font-semibold text-text-primary">{project.name}</h1>
+              <h1 className="truncate text-base sm:text-lg font-semibold text-text-primary">{project.name}</h1>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${projectStatusStyles[project.status]}`}>
                 {projectStatusLabels[project.status]}
               </span>

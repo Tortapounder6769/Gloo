@@ -98,7 +98,7 @@ export default function SlashCommandMenu({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
         <div
-          className="rounded-lg border border-border bg-card shadow-lg overflow-hidden animate-[slideUp_100ms_ease-out]"
+          className="max-h-[50vh] overflow-y-auto rounded-lg border border-border bg-card shadow-lg animate-[slideUp_100ms_ease-out]"
         >
         <div className="px-3 py-2">
           <span className="text-xs font-medium text-text-muted uppercase tracking-wide">

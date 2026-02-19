@@ -275,7 +275,7 @@ export default function DailyLogPage() {
 
   if (isLoading) {
     return (
-      <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
+      <main className="h-full overflow-y-auto bg-main p-3 sm:p-4 md:p-8">
         <div className="mx-auto max-w-3xl">
           <div className="flex h-64 items-center justify-center text-text-muted">
             Loading...
@@ -287,7 +287,7 @@ export default function DailyLogPage() {
 
   if (!project) {
     return (
-      <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
+      <main className="h-full overflow-y-auto bg-main p-3 sm:p-4 md:p-8">
         <div className="mx-auto max-w-3xl">
           <Link href="/projects" className="mb-4 inline-block text-cg-blue hover:text-blue-300">
             &larr; Back to Projects
@@ -306,10 +306,10 @@ export default function DailyLogPage() {
   )
 
   return (
-    <main className="h-full overflow-y-auto bg-main p-4 md:p-8">
+    <main className="h-full overflow-y-auto bg-main p-3 sm:p-4 md:p-8">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <div className="mb-5">
+        <div className="mb-4 sm:mb-5">
           <Link
             href={`/projects/${projectId}`}
             className="mb-2 inline-flex items-center gap-1 text-sm text-text-muted hover:text-accent transition-colors"
@@ -324,7 +324,7 @@ export default function DailyLogPage() {
         </div>
 
         {/* Date picker + History toggle */}
-        <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
           <div className="flex items-center gap-2">
             <label className="sr-only">Date:</label>
             <input
@@ -338,12 +338,12 @@ export default function DailyLogPage() {
               className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
-          <span className="text-sm text-text-secondary">{formatLogDate(selectedDate)}</span>
-          <div className="ml-auto flex items-center gap-2">
+          <span className="hidden sm:inline text-sm text-text-secondary">{formatLogDate(selectedDate)}</span>
+          <div className="flex w-full sm:w-auto sm:ml-auto items-center gap-2">
             <button
               onClick={handleExportPDF}
               disabled={isExporting || !rawEntry?.trim()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isExporting ? (
                 <>
@@ -364,7 +364,7 @@ export default function DailyLogPage() {
             </button>
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                 showHistory
                   ? 'border-accent bg-accent-soft text-accent'
                   : 'border-border text-text-secondary hover:bg-card'
@@ -490,7 +490,7 @@ export default function DailyLogPage() {
                 onChange={(e) => setRawEntry(e.target.value)}
                 placeholder={PLACEHOLDER_TEXT}
                 aria-label="Daily log entry"
-                className="min-h-[280px] w-full resize-y rounded-lg border border-border bg-input px-4 py-3 text-sm leading-relaxed text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                className="min-h-[200px] sm:min-h-[280px] w-full resize-y rounded-lg border border-border bg-input px-3 sm:px-4 py-3 text-[16px] sm:text-sm leading-relaxed text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 

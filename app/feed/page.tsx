@@ -66,7 +66,7 @@ export default function FeedPage() {
   return (
     <div className="flex h-full flex-col bg-main">
       {/* Header */}
-      <div className="border-b border-border px-6 py-5">
+      <div className="border-b border-border px-3 sm:px-6 py-4 sm:py-5">
         <h1 className="text-xl font-bold text-text-primary">Your Feed</h1>
         <p className="mt-1 text-sm text-text-muted">
           Threads you&apos;re involved in, sorted by recent activity
@@ -117,7 +117,7 @@ export default function FeedPage() {
                 <button
                   key={`${thread.projectId}-${thread.scheduleItemId ?? 'general'}`}
                   onClick={() => handleThreadClick(thread)}
-                  className="flex w-full items-start gap-3 px-6 py-4 text-left transition-colors hover:bg-[#2a2e36]"
+                  className="flex w-full items-start gap-3 px-3 sm:px-6 py-3 sm:py-4 text-left transition-colors hover:bg-[#2a2e36]"
                 >
                   {/* Unread indicator dot */}
                   <div className="mt-2 flex shrink-0 items-center">

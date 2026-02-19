@@ -222,11 +222,11 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
   return (
     <div className="flex h-full flex-col">
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-3 sm:p-6">
         {filteredMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card">
-              <svg className="h-8 w-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="mb-4 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-card">
+              <svg className="h-6 w-6 sm:h-8 sm:w-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
               </svg>
             </div>
@@ -260,7 +260,7 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
                       </div>
                       {msg.image && (
                         <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                          <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                          <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                         </button>
                       )}
                       {(() => {
@@ -309,7 +309,7 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
                     </p>
                     {msg.image && (
                       <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
-                        <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                        <img src={msg.image} alt="Shared image" className="max-w-[200px] sm:max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
                       </button>
                     )}
                     {(() => {
@@ -337,7 +337,7 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
       </div>
 
       {/* Compose box */}
-      <div className="border-t border-border bg-main p-4" onPaste={handlePaste}>
+      <div className="border-t border-border bg-main p-3 sm:p-4" onPaste={handlePaste}>
         <input
           ref={fileInputRef}
           type="file"
@@ -443,7 +443,7 @@ export default function ChannelView({ projectId, channelConfig, allMessages, onD
               onInput={handleTextareaInput}
               onKeyDown={handleKeyDown}
               placeholder={activeTag ? activeTag.placeholder : (session?.user ? `Message #${channelConfig.name} as ${session.user.name}...` : 'Type a message...')}
-              className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-4 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              className="max-h-24 flex-1 resize-none overflow-y-auto rounded-lg border border-border bg-input px-3 sm:px-4 py-2 text-[16px] sm:text-sm text-text-primary placeholder-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
             <button
               type="submit"
