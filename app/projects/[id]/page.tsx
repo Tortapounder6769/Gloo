@@ -22,6 +22,8 @@ import { detectTags } from '@/lib/detectTags'
 import { formatTimestamp, pluralize } from '@/lib/formatTimestamp'
 import ChannelView from '@/components/ChannelView'
 import ThreadView from '@/components/ThreadView'
+import ImageLightbox from '@/components/ImageLightbox'
+import { compressImage } from '@/lib/imageUtils'
 
 // Style maps
 const projectStatusStyles: Record<string, string> = {
@@ -118,6 +120,9 @@ export default function ProjectChannelPage() {
   // General chat state
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [stagedImage, setStagedImage] = useState<string | null>(null)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -211,7 +216,7 @@ export default function ProjectChannelPage() {
   // Send message in general channel
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !session?.user || isSending) return
+    if ((!newMessage.trim() && !stagedImage) || !session?.user || isSending) return
 
     setIsSending(true)
     shouldAutoScrollRef.current = true
@@ -222,10 +227,12 @@ export default function ProjectChannelPage() {
       session.user.id,
       session.user.name,
       session.user.role,
-      newMessage.trim()
+      newMessage.trim(),
+      stagedImage || undefined
     )
 
     setNewMessage('')
+    setStagedImage(null)
     markThreadAsRead(session.user.id, projectId, null)
     markChannelAsRead(session.user.id, projectId, 'general')
 
@@ -251,6 +258,34 @@ export default function ProjectChannelPage() {
     const el = e.currentTarget
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    try {
+      const compressed = await compressImage(file)
+      setStagedImage(compressed)
+    } catch { /* ignore */ }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          try {
+            const compressed = await compressImage(file)
+            setStagedImage(compressed)
+          } catch { /* ignore */ }
+        }
+        return
+      }
+    }
   }
 
   // Schedule item handlers
@@ -380,6 +415,11 @@ export default function ProjectChannelPage() {
                             <p className="text-sm text-text-secondary">{msg.content}</p>
                             <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                           </div>
+                          {msg.image && (
+                            <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
+                              <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                            </button>
+                          )}
                           {msgTags.length > 0 && (
                             <span className="text-xs text-slate-500">
                               {msgTags.map(t => t.label).join(' · ')}
@@ -404,6 +444,11 @@ export default function ProjectChannelPage() {
                           <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                         </div>
                         <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                        {msg.image && (
+                          <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
+                            <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                          </button>
+                        )}
                         {msgTags.length > 0 && (
                           <span className="text-xs text-slate-500">
                             {msgTags.map(t => t.label).join(' · ')}
@@ -418,13 +463,45 @@ export default function ProjectChannelPage() {
           </div>
 
           {/* Compose box */}
-          <div className="border-t border-border bg-main p-4">
+          <div className="border-t border-border bg-main p-4" onPaste={handlePaste}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
             {composeTags.length > 0 && (
               <span className="mb-2 text-xs text-slate-500">
                 {composeTags.map(t => t.label).join(' · ')}
               </span>
             )}
+            {stagedImage && (
+              <div className="mb-2 flex items-start gap-2">
+                <div className="relative">
+                  <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setStagedImage(null)}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="shrink-0 rounded-lg p-2 text-text-muted hover:text-text-secondary hover:bg-card transition-colors"
+                title="Attach image"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                </svg>
+              </button>
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -437,9 +514,9 @@ export default function ProjectChannelPage() {
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim() || isSending}
+                disabled={(!newMessage.trim() && !stagedImage) || isSending}
                 className={`rounded-lg px-5 py-2 text-sm font-medium transition-colors ${
-                  !newMessage.trim() || isSending
+                  (!newMessage.trim() && !stagedImage) || isSending
                     ? 'cursor-not-allowed bg-card text-text-muted'
                     : 'bg-accent text-dark hover:bg-amber-500'
                 }`}
@@ -451,6 +528,13 @@ export default function ProjectChannelPage() {
               <p className="mt-1.5 text-xs text-text-muted">Press Enter to send, Shift+Enter for new line</p>
             )}
           </div>
+          {lightboxSrc && (
+            <ImageLightbox
+              src={lightboxSrc}
+              isOpen={!!lightboxSrc}
+              onClose={() => setLightboxSrc(null)}
+            />
+          )}
         </div>
       )
     }

@@ -12,6 +12,8 @@ import {
 } from '@/lib/store'
 import { detectTags, DetectedTag } from '@/lib/detectTags'
 import { formatTimestamp } from '@/lib/formatTimestamp'
+import { compressImage } from '@/lib/imageUtils'
+import ImageLightbox from '@/components/ImageLightbox'
 
 interface ThreadViewProps {
   projectId: string
@@ -119,6 +121,9 @@ export default function ThreadView({
   const [editDueDate, setEditDueDate] = useState(item.dueDate)
   const [editAssignedTo, setEditAssignedTo] = useState<string[]>(item.assignedTo || [])
 
+  const [stagedImage, setStagedImage] = useState<string | null>(null)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -157,7 +162,7 @@ export default function ThreadView({
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !session?.user || isSending) return
+    if ((!newMessage.trim() && !stagedImage) || !session?.user || isSending) return
 
     setIsSending(true)
     shouldAutoScrollRef.current = true
@@ -168,10 +173,12 @@ export default function ThreadView({
       session.user.id,
       session.user.name,
       session.user.role,
-      newMessage.trim()
+      newMessage.trim(),
+      stagedImage || undefined
     )
 
     setNewMessage('')
+    setStagedImage(null)
     markThreadAsRead(session.user.id, projectId, item.id)
 
     if (textareaRef.current) {
@@ -196,6 +203,34 @@ export default function ThreadView({
     const el = e.currentTarget
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    try {
+      const compressed = await compressImage(file)
+      setStagedImage(compressed)
+    } catch { /* ignore */ }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          try {
+            const compressed = await compressImage(file)
+            setStagedImage(compressed)
+          } catch { /* ignore */ }
+        }
+        return
+      }
+    }
   }
 
   const handleStatusChange = (newStatus: ScheduleItemStatus) => {
@@ -442,6 +477,11 @@ export default function ThreadView({
                         <p className="text-sm text-text-secondary">{msg.content}</p>
                         <span className="shrink-0 text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                       </div>
+                      {msg.image && (
+                        <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
+                          <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                        </button>
+                      )}
                       <TagPills tags={msgTags} />
                     </div>
                   </div>
@@ -462,6 +502,11 @@ export default function ThreadView({
                       <span className="text-xs text-text-muted">{formatTimestamp(msg.createdAt)}</span>
                     </div>
                     <p className="mt-1 text-sm text-text-secondary">{msg.content}</p>
+                    {msg.image && (
+                      <button type="button" onClick={() => setLightboxSrc(msg.image!)} className="mt-2 block">
+                        <img src={msg.image} alt="Shared image" className="max-w-[300px] rounded-lg border border-border hover:opacity-90 transition-opacity" />
+                      </button>
+                    )}
                     <TagPills tags={msgTags} />
                   </div>
                 </div>
@@ -472,7 +517,14 @@ export default function ThreadView({
       </div>
 
       {/* Smart Compose Box */}
-      <div className="border-t border-border bg-main p-4">
+      <div className="border-t border-border bg-main p-4" onPaste={handlePaste}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
         {/* Smart tags bar */}
         {newMessage.trim() === '' ? (
           <p className="mb-2 text-xs text-text-muted">Smart tags will appear as you type...</p>
@@ -481,6 +533,21 @@ export default function ThreadView({
             {composeTags.map(t => t.label).join(' \u00B7 ')}
           </div>
         ) : null}
+
+        {stagedImage && (
+          <div className="mb-2 flex items-start gap-2">
+            <div className="relative">
+              <img src={stagedImage} alt="Staged" className="h-20 w-20 rounded-lg border border-border object-cover" />
+              <button
+                type="button"
+                onClick={() => setStagedImage(null)}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border text-text-muted hover:text-text-primary text-xs"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSendMessage}>
           <textarea
@@ -502,7 +569,7 @@ export default function ThreadView({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                 </svg>
               </button>
-              <button type="button" className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded p-1.5 text-text-muted transition-colors hover:text-text-secondary">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -519,9 +586,9 @@ export default function ThreadView({
             </div>
             <button
               type="submit"
-              disabled={!newMessage.trim() || isSending}
+              disabled={(!newMessage.trim() && !stagedImage) || isSending}
               className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-                newMessage.trim() && !isSending
+                (newMessage.trim() || stagedImage) && !isSending
                   ? 'bg-accent text-dark hover:bg-amber-500'
                   : 'cursor-not-allowed bg-card text-text-muted'
               }`}
@@ -534,6 +601,13 @@ export default function ThreadView({
         {/* Hint text */}
         <p className="mt-2 text-xs text-text-muted">Glue auto-detects trades, delays, inspections, and work items from your message</p>
       </div>
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          isOpen={!!lightboxSrc}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   )
 }

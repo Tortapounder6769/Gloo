@@ -71,6 +71,7 @@ export interface Message {
   authorName: string;
   authorRole: Role;
   content: string;
+  image?: string;  // base64 data URI
   createdAt: string;
 }
 

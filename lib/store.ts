@@ -177,7 +177,8 @@ export function createMessage(
   authorId: string,
   authorName: string,
   authorRole: string,
-  content: string
+  content: string,
+  image?: string
 ): Message {
   const messages = getFromStorage<Message[]>(KEYS.messages, []);
 
@@ -189,6 +190,7 @@ export function createMessage(
     authorName,
     authorRole: authorRole as Message['authorRole'],
     content,
+    ...(image ? { image } : {}),
     createdAt: new Date().toISOString(),
   };
 
